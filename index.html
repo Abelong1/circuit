@@ -196,8 +196,9 @@ header h2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 .av{position:relative;flex:none;display:inline-flex}
 .ubadge{position:absolute;top:-5px;right:-7px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#E5322D;color:#fff;font:700 11px/18px system-ui,sans-serif;text-align:center;border:2px solid var(--card);box-sizing:content-box}
-.nbadge{position:absolute;top:-2px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#E5322D;color:#fff;font:700 11px/18px system-ui,sans-serif;font-style:normal;text-align:center;border:2px solid var(--card);box-sizing:content-box}
-@media (min-width:900px){.nbadge{top:14px;right:auto;left:30px}}
+.nbadge{position:absolute;top:0;left:calc(50% + 4px);min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#E5322D;color:#fff;font:700 10px/16px system-ui,sans-serif;font-style:normal;text-align:center;border:2px solid var(--card);box-sizing:content-box}
+#rail button.on .nbadge{left:auto;right:4px}
+@media (min-width:900px){.nbadge,#rail button.on .nbadge{position:static;margin-left:auto;border:0;min-width:22px;height:22px;line-height:22px;border-radius:11px;font-size:12px}}
 .ntf{width:100%;text-align:left;line-height:1.4}.ntf.new{box-shadow:inset 4px 0 0 var(--brand)}
 .ntf .tx{flex:1;min-width:0;font-size:15px;color:var(--body)}.ntf .tx b{color:var(--ink)}
 .ntf .tm{display:block;font-size:12px;color:var(--muted);margin-top:2px}
@@ -321,10 +322,12 @@ async function refreshPending(){
   paintNav();paintAside();
 }
 
+function navBadge(k){const n={friends:pending,msgs:msgUnread,notifs:notifUnread}[k]||0;
+  return n?`<i class="nbadge">${n>99?'99+':n}</i>`:''}
 function paintNav(){
   const brand=`<div class="brand">${blob('circuit',34,'#CF6A4F')}Circuit</div>`;
   $('rail').innerHTML=brand+NAV.map(([k,l])=>
-    `<button class="${k===screen?'on':''}" onclick="go('${k}')" aria-label="${l}">${ICON[k]}<span>${l}</span>${k==='friends'&&pending?'<i class="dot"></i>':''}${k==='notifs'&&notifUnread?`<i class="nbadge">${notifUnread>99?'99+':notifUnread}</i>`:''}</button>`).join('');
+    `<button class="${k===screen?'on':''}" onclick="go('${k}')" aria-label="${l}">${ICON[k]}<span>${l}</span>${navBadge(k)}</button>`).join('');
 }
 function paintAside(){
   if(!me)return;
@@ -341,6 +344,7 @@ function paintAside(){
     <p style="font-size:13px;color:var(--muted);line-height:1.5;padding:0 6px">Chats are private. ACES officers cannot read them.</p>`;
 }
 function go(s){
+  if(screen==='chat'&&s!=='chat'&&s!=='msgs')setTimeout(refreshMsgCount,800);
   screen=s;paintNav();
   document.body.classList.toggle('typing',s==='chat'||s==='post');
   $('ft').classList.add('hide');$('ft').innerHTML='';pendingFile=null;
@@ -692,7 +696,13 @@ function clearMsgNotif(convId){
 
 /* ---------- messages list ---------- */
 /* unread counts: compares each chat's messages with my row in aces_conversation_reads (written by aces_mark_read in logo.js) */
-let inboxChan=null,inboxT=null;
+let inboxChan=null,inboxT=null,msgUnread=0,msgCountT=null;
+async function refreshMsgCount(){
+  const {data}=await sb.rpc('aces_my_conversations');
+  const uc=await unreadCounts((data||[]).map(c=>c.conversation_id));
+  setMsgUnread(uc);
+}
+function setMsgUnread(uc){const n=Object.values(uc).reduce((a,b)=>a+b,0);if(n!==msgUnread){msgUnread=n;paintNav()}}
 async function unreadCounts(ids){
   if(!ids.length)return {};
   const [{data:rd},{data}]=await Promise.all([
@@ -706,7 +716,9 @@ function watchInbox(){
   if(inboxChan)return;
   inboxChan=sb.channel('inbox').on('postgres_changes',{event:'INSERT',schema:'public',table:'aces_messages'},()=>{
     if(screen==='msgs'){clearTimeout(inboxT);inboxT=setTimeout(scrMsgs,400)}
+    else{clearTimeout(msgCountT);msgCountT=setTimeout(refreshMsgCount,screen==='chat'?1500:400)}
   }).subscribe();
+  refreshMsgCount();
 }
 async function scrMsgs(){
   hdr('Messages',{right:`<button class="tiny ic" onclick="newGroup()" aria-label="New group chat">${ICON.groupadd}<span>New group</span></button>`});
@@ -715,7 +727,7 @@ async function scrMsgs(){
   if(screen!=='msgs')return;
   if(error)return $('view').innerHTML=`<div class="empty">${esc(error.message)}</div>`;
   (data||[]).forEach(c=>convMeta[c.conversation_id]={isGroup:c.is_group,title:c.is_group?(c.title||'Group'):(c.other_handle||'Chat'),others:c.other_handle||''});
-  const uc=await unreadCounts((data||[]).map(c=>c.conversation_id));if(screen!=='msgs')return;
+  const uc=await unreadCounts((data||[]).map(c=>c.conversation_id));setMsgUnread(uc);if(screen!=='msgs')return;
   const vh=`
     <div class="card"><label for="nh" style="margin-top:0">Start a chat</label>
       <div style="display:flex;gap:8px"><input id="nh" placeholder="Their handle" autocapitalize="none">
