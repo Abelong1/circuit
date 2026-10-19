@@ -47,6 +47,7 @@ input,textarea{width:100%;background:var(--card);border:2px solid var(--line);bo
 input:focus,textarea:focus{border-color:var(--soft)}
 textarea{resize:none;line-height:1.45}
 .primary{width:100%;height:56px;border-radius:28px;background:var(--brand);color:#fff;font-size:17px;font-weight:700;margin-top:20px}
+.primary:disabled{opacity:.6;cursor:default}
 .primary:disabled{opacity:.6}
 .secondary{width:100%;height:56px;border-radius:28px;border:2px solid var(--brand);color:var(--brand);font-size:17px;font-weight:700;margin-top:12px;background:none}
 .tiny{height:44px;border-radius:22px;padding:0 18px;font-size:14px;font-weight:700;background:var(--brand);color:#fff;flex:none}
@@ -220,7 +221,7 @@ header h2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       <input id="li-em" type="email" autocomplete="email" placeholder="you@email.com">
       <label for="li-pw">Password</label>
       <input id="li-pw" type="password" autocomplete="current-password" placeholder="Your password">
-      <button class="primary" onclick="doLogin()">Log in</button>
+      <button class="primary" id="li-btn" onclick="doLogin()">Log in</button>
       <div class="err" id="li-err"></div>
       <button class="linkbtn" onclick="swap('signup')">New here? Create an account</button>
     </div>
@@ -230,7 +231,7 @@ header h2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       <label for="su-pw">Password</label>
       <input id="su-pw" type="password" autocomplete="new-password" placeholder="At least 6 characters">
       <div class="terms"><input type="checkbox" id="su-tc"><span>I have read and accept the Circuit Terms &amp; Community Policy, including that ACES officers can see the real identity behind any handle.</span></div>
-      <button class="primary" onclick="doSignup()">Create account</button>
+      <button class="primary" id="su-btn" onclick="doSignup()">Create account</button>
       <div class="err" id="su-err"></div>
       <button class="linkbtn" onclick="swap('login')">Already have an account? Log in</button>
     </div>
@@ -289,7 +290,13 @@ const FEEDNAME={moments:'Moments',help:'Help',hiring:'Hiring'};
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),2600)}
 function swap(w){$('f-login').classList.toggle('hide',w!=='login');$('f-signup').classList.toggle('hide',w!=='signup')}
 
+function busy(id,on,label){const b=$(id);if(!b)return;if(on){b._t=b._t||b.textContent;b.disabled=true;b.textContent=label}else{b.disabled=false;b.textContent=b._t||b.textContent}}
 async function doSignup(){
+  if($('su-btn').disabled)return;
+  busy('su-btn',true,'Creating…');
+  try{await _doSignup()}finally{busy('su-btn',false)}
+}
+async function _doSignup(){
   const e=$('su-err');e.textContent='';
   const em=$('su-em').value.trim(),pw=$('su-pw').value;
   if(!em||!pw)return e.textContent='Fill in both fields.';
@@ -301,6 +308,11 @@ async function doSignup(){
   boot(m=>e.textContent=m);
 }
 async function doLogin(){
+  if($('li-btn').disabled)return;
+  busy('li-btn',true,'Logging in…');
+  try{await _doLogin()}finally{busy('li-btn',false)}
+}
+async function _doLogin(){
   const e=$('li-err');e.textContent='';
   const {error}=await sb.auth.signInWithPassword({email:$('li-em').value.trim(),password:$('li-pw').value});
   if(error)return e.textContent=error.message;
