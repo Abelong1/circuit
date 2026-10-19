@@ -202,6 +202,11 @@ header h2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ntf{width:100%;text-align:left;line-height:1.4}.ntf.new{box-shadow:inset 4px 0 0 var(--brand)}
 .ntf .tx{flex:1;min-width:0;font-size:15px;color:var(--body)}.ntf .tx b{color:var(--ink)}
 .ntf .tm{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.mtn{color:var(--brand);font-weight:700}.htag{color:var(--brand);font-weight:700;cursor:pointer}
+.tagbar{display:flex;align-items:center;gap:10px;background:var(--card);border:2px solid var(--brand);border-radius:var(--r);padding:10px 16px;margin-bottom:12px;font-weight:700;color:var(--brand)}
+.tagbar button{margin-left:auto;color:var(--muted);font-weight:700;font-size:14px}
+.msug{display:flex;gap:6px;flex-wrap:wrap;width:100%;margin:8px 0 0}#ft .msug{order:-1;margin:0 0 4px}
+.msug button{display:flex;align-items:center;gap:6px;height:36px;border-radius:18px;background:var(--card);border:2px solid var(--line);padding:0 12px 0 6px;font-size:13px;font-weight:700;color:var(--body)}
 .unread .pv{color:var(--ink)!important;font-weight:700}
 </style>
 </head>
@@ -397,10 +402,44 @@ async function saveAnnouncement(){
   if(error)return $('aerr').textContent=error.message;
   closeSheet();toast('Announcement updated');loadAnnouncement();
 }
+/* ---------- @mentions and #tags ---------- */
+let tagFilter=null,mentionPool=null;
+function fmt(t){
+  return esc(t).replace(/(^|[^\w&@])@([A-Za-z0-9_]{2,40})/g,'$1<span class="mtn">@$2</span>')
+    .replace(/(^|[\s(])#([A-Za-z][A-Za-z0-9_]{0,30})/g,(m,a,tag)=>`${a}<span class="htag" onclick="event.stopPropagation();setTag('${tag.toLowerCase()}')">#${tag}</span>`);
+}
+function setTag(t){tagFilter=t;feed='all';feedCache={};if(typeof feedAt!=='undefined')feedAt={};go('home')}
+function clearTag(){tagFilter=null;feedCache={};if(typeof feedAt!=='undefined')feedAt={};scrHome()}
+async function loadMentionPool(){
+  if(mentionPool)return;mentionPool=new Set();
+  Object.values(handles).forEach(h=>mentionPool.add(h));
+  (await friendHandles()).forEach(h=>mentionPool.add(h));
+  if(me)mentionPool.delete(me.handle);
+}
+function attachMentions(el){
+  if(!el)return;
+  const box=document.createElement('div');box.className='msug';box.hidden=true;el.after(box);
+  el.addEventListener('focus',loadMentionPool,{once:true});
+  el.addEventListener('input',()=>{
+    const pre=el.value.slice(0,el.selectionStart),m=pre.match(/(^|\s)@([A-Za-z0-9_]{0,40})$/);
+    if(!m||!mentionPool){box.hidden=true;return}
+    const q=m[2].toLowerCase(),list=[...mentionPool].filter(h=>h.toLowerCase().startsWith(q)).slice(0,5);
+    if(!list.length){box.hidden=true;return}
+    box.hidden=false;
+    box.innerHTML=list.map(h=>`<button type="button" data-h="${esc(h)}">${blob(h,24)}${esc(h)}</button>`).join('');
+    box.querySelectorAll('button').forEach(b=>b.onmousedown=e=>{e.preventDefault();
+      const start=pre.length-m[2].length,after=el.value.slice(el.selectionStart);
+      el.value=el.value.slice(0,start)+b.dataset.h+' '+after;
+      const c=start+b.dataset.h.length+1;el.setSelectionRange(c,c);box.hidden=true;el.focus()});
+  });
+  el.addEventListener('blur',()=>setTimeout(()=>box.hidden=true,150));
+}
+
 async function loadFeed(){
   const box=()=>$('feedlist');if(!box())return;
   let q=sb.from('aces_posts').select('*').order('created_at',{ascending:false}).limit(60);
   if(feed!=='all'&&feed!=='saved')q=q.eq('feed',feed);
+  if(tagFilter)q=q.filter('body','imatch',`#${tagFilter}([^a-z0-9_]|$)`);
   const hq=sb.from('aces_handles').select('id,handle').then(({data:hs})=>{handles={};(hs||[]).forEach(h=>handles[h.id]=h.handle)});
   const [{data,error}]=await Promise.all([q,Object.keys(handles).length?Promise.resolve():hq]);
   if(!box())return;
@@ -408,7 +447,8 @@ async function loadFeed(){
   posts=data||[];
   const show=feed==='saved'?posts.filter(p=>bookmarks.has(p.id)):posts;
   box()._h=null;
-  if(!show.length)return box().innerHTML=`<div class="empty">${feed==='saved'
+  const tb=tagFilter?`<div class="tagbar">#${esc(tagFilter)}<button onclick="clearTag()">✕ Clear</button></div>`:'';
+  if(!show.length)return box().innerHTML=tb+`<div class="empty">${tagFilter?'No posts with this tag yet.<br>Add #'+esc(tagFilter)+' to a post to start it.':feed==='saved'
     ?'Nothing saved yet.<br>Tap Save on a post to keep it here.'
     :'Nothing here yet.<br>Be the first to post.'}</div>`;
   const ids=show.map(p=>p.id);
@@ -421,12 +461,12 @@ async function loadFeed(){
   (rx||[]).forEach(r=>{rc[r.target_id]=(rc[r.target_id]||0)+1;if(r.user_id===me.id)mine[r.target_id]=1});
   likeCount=rc;liked=mine;
   (cc||[]).forEach(c=>cn[c.post_id]=(cn[c.post_id]||0)+1);
-  const fh=show.map(p=>{
+  let fh=show.map(p=>{
     const h=handles[p.author_id]||'member',long=p.body.length>220,op=expanded.has(p.id);
     return `<article class="card" id="post-${p.id}">
       <div class="who">${blob(h,40)}<div style="flex:1;min-width:0"><div class="nm">${esc(h)}</div><div class="tm">${ago(p.created_at)}${p.edited_at?' · edited':''}</div></div>
       <span class="pill feed">${esc(FEEDNAME[p.feed]||p.feed)}</span></div>
-      ${p.body?`<p class="ptext ${long&&!op?'clamp':''}">${esc(p.body)}</p>`:''}
+      ${p.body?`<p class="ptext ${long&&!op?'clamp':''}">${fmt(p.body)}</p>`:''}
       ${photoHtml(p)}
       ${long?`<div class="more" onclick="expand(${p.id})">${op?'Show less':'Show more'}</div>`:''}
       <div class="acts">
@@ -436,6 +476,7 @@ async function loadFeed(){
         ${p.author_id!==me.id?`<button class="act flag" onclick="report(${p.id})" aria-label="Report">${ICON.flag}</button>`
           :`<button class="act flag" style="font-size:18px" onclick="postMenu(${p.id})" aria-label="Post options">⋯</button>`}
       </div></article>`}).join('');
+  fh=tb+fh;
   feedCache[feed]=fh;
   if(box()._h!==fh){box().innerHTML=fh;box()._h=fh}
 }
@@ -480,12 +521,12 @@ function openCompose(){
   $('shtitle').textContent='Share something';
   $('shbody').innerHTML=`<div class="catrow">${Object.keys(FEEDNAME).map(k=>
     `<button class="chip ${k===draftFeed?'on':''}" id="cat-${k}" onclick="pickCat('${k}')">${FEEDNAME[k]}</button>`).join('')}</div>
-    <textarea id="pb" rows="5" placeholder="What's going on?"></textarea>
+    <textarea id="pb" rows="5" placeholder="What's going on? Use @handle to mention, #topic to tag"></textarea>
     <div id="pprev"></div>
     <div class="photo-pick"><button class="attach" onclick="pickPostPhoto()" aria-label="Add photo">${ICON.clip}</button><span style="color:var(--muted);font-size:14px;font-weight:700">Add a photo</span></div>
     <button class="primary" id="postbtn" onclick="submitPost()">Post</button><div class="err" id="perr"></div>`;
   draftPhoto=null;
-  $('sheet').classList.add('on');setTimeout(()=>$('pb').focus(),80);
+  $('sheet').classList.add('on');attachMentions($('pb'));setTimeout(()=>$('pb').focus(),80);
 }
 function pickCat(k){draftFeed=k;Object.keys(FEEDNAME).forEach(x=>$('cat-'+x).classList.toggle('on',x===k))}
 function closeSheet(){$('sheet').classList.remove('on')}
@@ -531,7 +572,7 @@ function openEdit(id){
     `<button class="chip ${k===draftFeed?'on':''}" id="cat-${k}" onclick="pickCat('${k}')">${FEEDNAME[k]}</button>`).join('')}</div>
     <textarea id="eb" rows="6" placeholder="What's going on?">${esc(p.body||'')}</textarea>
     <button class="primary" id="editbtn" onclick="saveEdit(${id})">Save changes</button><div class="err" id="eerr"></div>`;
-  $('sheet').classList.add('on');setTimeout(()=>{const t=$('eb');t.focus();t.setSelectionRange(t.value.length,t.value.length)},80);
+  $('sheet').classList.add('on');attachMentions($('eb'));setTimeout(()=>{const t=$('eb');t.focus();t.setSelectionRange(t.value.length,t.value.length)},80);
 }
 async function saveEdit(id){
   const p=posts.find(x=>x.id===id);if(!p)return;
@@ -582,7 +623,7 @@ async function scrPost(){
   hdr('Post',{back:'home'});
   $('ft').classList.remove('hide');
   $('ft').innerHTML=`<input id="cm" placeholder="Write a comment…"><button class="tiny" onclick="sendComment()">Send</button>`;
-  $('cm').addEventListener('keydown',e=>{if(e.key==='Enter')sendComment()});
+  $('cm').addEventListener('keydown',e=>{if(e.key==='Enter')sendComment()});attachMentions($('cm'));
   const p=posts.find(x=>x.id===openPost);
   if(!p)return $('view').innerHTML='<div class="empty">Post not found.</div>';
   const h=handles[p.author_id]||'member';
@@ -591,13 +632,13 @@ async function scrPost(){
   $('view').innerHTML=`<article class="card">
     <div class="who">${blob(h,40)}<div style="flex:1"><div class="nm">${esc(h)}</div><div class="tm">${ago(p.created_at)}${p.edited_at?' · edited':''}</div></div>
     <span class="pill feed">${esc(FEEDNAME[p.feed]||p.feed)}</span></div>
-    ${p.body?`<p class="ptext">${esc(p.body)}</p>`:''}
+    ${p.body?`<p class="ptext">${fmt(p.body)}</p>`:''}
     ${photoHtml(p)}
     ${p.author_id===me.id?`<div class="acts"><button class="act" onclick="openEdit(${p.id})">${ICON.edit} Edit post</button><button class="act flag" onclick="askDelete(${p.id})">${ICON.trash} Delete post</button></div>`:''}</article>
     <div class="sec">${(cs||[]).length} comment${(cs||[]).length===1?'':'s'}</div>
     ${(cs||[]).map(c=>{const ch=handles[c.author_id]||'member';
       return `<article class="card"><div class="who">${blob(ch,32)}<div style="flex:1"><div class="nm">${esc(ch)}</div><div class="tm">${ago(c.created_at)}</div></div></div>
-      <p class="ptext" style="margin-bottom:0">${esc(c.body)}</p></article>`}).join('')
+      <p class="ptext" style="margin-bottom:0">${fmt(c.body)}</p></article>`}).join('')
       ||'<div class="empty">No comments yet. Start the thread.</div>'}`;
 }
 async function sendComment(){
