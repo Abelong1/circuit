@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512" role="img" aria-label="Circuit">
+<rect width="100" height="100" fill="#FBF3E8"/>
+<g transform="translate(8,8) scale(0.84)">
+<path d="M55 19V6h9" fill="none" stroke="#CF6A4F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="66" cy="6" r="4" fill="#CF6A4F"/>
+<circle cx="50" cy="34" r="21" fill="#CF6A4F"/><circle cx="28" cy="47" r="19" fill="#CF6A4F"/>
+<circle cx="72" cy="47" r="19" fill="#CF6A4F"/><circle cx="37" cy="67" r="21" fill="#CF6A4F"/>
+<circle cx="63" cy="67" r="21" fill="#CF6A4F"/><circle cx="50" cy="51" r="25" fill="#CF6A4F"/>
+<circle cx="43" cy="48" r="9" fill="#fff"/><circle cx="59" cy="48" r="9" fill="#fff"/>
+<circle cx="44" cy="49" r="5" fill="#1E1210"/><circle cx="60" cy="49" r="5" fill="#1E1210"/>
+<path d="M37.6 37.8L36.4 34M42.3 36.2L41.8 32.4M46.8 37.2L47.4 33.4M54.2 37.2L53.6 33.4M58.7 36.2L59.2 32.4M63.4 37.8L64.6 34" stroke="#1E1210" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+</g></svg>

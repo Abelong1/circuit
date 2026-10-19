@@ -1,0 +1,8 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/join", "destination": "/" },
+    { "source": "/login", "destination": "/" },
+    { "source": "/signup", "destination": "/" }
+  ]
+}

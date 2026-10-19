@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Circuit Admin</title>
+<meta name="theme-color" content="#C9472F">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/logo.js"></script>
+<style>
+:root{--sand:#EFE2D2;--paper:#FBF3E8;--card:#fff;--brand:#C9472F;--soft:#E4694F;
+--ink:#1E1210;--muted:#8A4A3C;--body:#5A2E25;--line:#EADBC8;--okbg:#D4F0E6;--okink:#1D6B53;
+--warnbg:#FBE3C8;--warnink:#8A5A12;--badbg:#C9472F;color-scheme:light}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:Nunito,system-ui,sans-serif;font-weight:500}
+h1,h2,h3{font-family:Fredoka,sans-serif;font-weight:700}
+button,input,select{font:inherit;color:inherit}button{cursor:pointer;border:0;background:none}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 20px 60px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+.brand{display:flex;align-items:center;gap:12px}
+h1{font-size:30px;color:var(--brand)}
+.sub{color:var(--muted);font-size:14px;font-weight:700;margin-bottom:22px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.tab{height:44px;border-radius:22px;background:var(--card);border:2px solid var(--line);color:var(--body);
+  font-size:14px;font-weight:700;padding:0 18px;display:flex;align-items:center;gap:8px}
+.tab.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.tab .n{background:var(--brand);color:#fff;border-radius:11px;font-size:12px;padding:1px 8px}
+.tab.on .n{background:rgba(255,255,255,.25)}
+.card{background:var(--card);border-radius:24px;padding:18px;margin-bottom:14px}
+.btn{height:44px;border-radius:22px;padding:0 16px;font-size:13px;font-weight:700;background:var(--paper);
+  color:var(--body);border:2px solid var(--line);margin:6px 8px 0 0}
+.btn.brand{background:var(--brand);color:#fff;border-color:var(--brand)}
+.btn.ok{background:var(--okbg);color:var(--okink);border-color:var(--okbg)}
+.btn.bad{background:var(--badbg);color:#fff;border-color:var(--badbg)}
+input{background:var(--paper);border:2px solid var(--line);border-radius:18px;padding:12px 16px;font-size:15px;outline:none}
+input:focus{border-color:var(--soft)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:8px;font-weight:700}
+td{padding:12px 8px;border-top:2px solid var(--line);vertical-align:top}
+.pill{display:inline-block;border-radius:12px;font-size:12px;font-weight:700;padding:4px 11px}
+.active{background:var(--okbg);color:var(--okink)}
+.suspended{background:var(--warnbg);color:var(--warnink)}
+.banned{background:var(--badbg);color:#fff}
+.open{background:var(--warnbg);color:var(--warnink)}
+.resolved{background:var(--okbg);color:var(--okink)}
+.dismissed{background:var(--paper);color:var(--muted)}
+.quote{background:var(--paper);border-radius:16px;padding:14px 16px;margin:12px 0;white-space:pre-wrap;line-height:1.5;word-break:break-word}
+.meta{font-size:13px;color:var(--muted)}
+.real{background:var(--warnbg);color:var(--warnink);border-radius:10px;padding:2px 8px;font-weight:700}
+.err{color:var(--brand);font-weight:700;font-size:14px;margin-top:10px}
+.empty{text-align:center;color:var(--muted);padding:44px;font-size:15px;line-height:1.5}
+#login{max-width:400px;margin:70px auto}
+#login input{width:100%;margin-bottom:12px}
+#login .primary{width:100%;height:56px;border-radius:28px;background:var(--brand);color:#fff;font-size:17px;font-weight:700}
+a.plain{text-decoration:none;color:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div id="login" class="card" style="display:none">
+  <div class="brand" style="margin-bottom:6px"><span id="lg"></span><h1>Circuit Admin</h1></div>
+  <p class="sub">ACES officers only.</p>
+  <input id="em" type="email" placeholder="Email" autocomplete="email">
+  <input id="pw" type="password" placeholder="Password" autocomplete="current-password">
+  <button class="primary" onclick="doLogin()">Log in</button>
+  <div class="err" id="lerr"></div>
+</div>
+
+<div id="app" style="display:none">
+  <div class="top">
+    <div class="brand"><span id="lg2"></span><div><h1>Circuit Admin</h1><div class="sub" id="who" style="margin:0"></div></div></div>
+    <div><a class="btn plain" href="/">Back to app</a><button class="btn" onclick="logout()">Log out</button></div>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div id="view"></div>
+</div>
+
+</div>
+<script>
+const sb=supabase.createClient('https://hlthachyodyncnfkpqwo.supabase.co','sb_publishable_U_R4sJ3a8WS8beFADkKwIA_RBASwACA');
+const $=i=>document.getElementById(i);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const when=t=>t?new Date(t).toLocaleString('en-PH',{dateStyle:'medium',timeStyle:'short'}):'never';
+
+let me=null,tab='reports';
+const TABS=[['reports','Reports'],['members','Members'],['whitelist','Whitelist'],['logins','Login monitoring'],['audit','Audit log']];
+
+function fail(e){$('view').innerHTML=`<div class="card err">${esc(e.message||e)}</div>`}
+function paintTabs(){
+  $('tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab ${k===tab?'on':''}" onclick="tab='${k}';render()">${l}${k==='reports'&&window._open?`<span class="n">${window._open}</span>`:''}</button>`).join('');
+}
+async function boot(){
+  $('lg').innerHTML=blob('circuit',40,'#CF6A4F');$('lg2').innerHTML=blob('circuit',44,'#CF6A4F');
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){$('login').style.display='block';return}
+  const {data,error}=await sb.rpc('aces_ensure_profile');
+  if(error){$('login').style.display='block';$('lerr').textContent=error.message;await sb.auth.signOut();return}
+  if(data.role!=='admin'){$('login').style.display='block';$('lerr').textContent='This account is not an ACES officer.';await sb.auth.signOut();return}
+  me=data;$('login').style.display='none';$('app').style.display='block';
+  $('who').textContent='Signed in as '+me.handle;
+  render();
+}
+async function doLogin(){
+  $('lerr').textContent='';
+  const {error}=await sb.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});
+  if(error){$('lerr').textContent=error.message;return}
+  boot();
+}
+async function logout(){await sb.auth.signOut();location.reload()}
+
+function render(){
+  paintTabs();
+  $('view').innerHTML='<div class="card empty">Loading…</div>';
+  ({reports,members,whitelist,logins,audit})[tab]().catch(fail);
+}
+async function logAction(action,type,id,notes){
+  await sb.from('aces_audit_log').insert({admin_id:me.id,action,target_type:type,target_id:id,notes});
+}
+
+async function reports(){
+  const {data:rs,error}=await sb.from('aces_reports').select('*').order('created_at',{ascending:false});
+  if(error)throw error;
+  window._open=rs.filter(r=>r.status==='open').length;
+  const {data:us}=await sb.from('aces_users').select('id,handle,real_name,email,status');
+  const U={};(us||[]).forEach(u=>U[u.id]=u);
+  const pid=rs.filter(r=>r.target_type==='post').map(r=>r.target_id),
+        cid=rs.filter(r=>r.target_type==='comment').map(r=>r.target_id);
+  const P={},C={};
+  if(pid.length){const {data}=await sb.from('aces_posts').select('*').in('id',pid);(data||[]).forEach(p=>P[p.id]=p)}
+  if(cid.length){const {data}=await sb.from('aces_comments').select('*').in('id',cid);(data||[]).forEach(c=>C[c.id]=c)}
+  paintTabs();
+  if(!rs.length){$('view').innerHTML='<div class="card empty">No reports yet.<br>Quiet day on Circuit.</div>';return}
+  const handled=rs.filter(r=>r.status!=='open').map(r=>r.id);
+  window._handled=handled;
+  $('view').innerHTML=(handled.length?`<div class="card" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span class="meta" style="flex:1">${handled.length} handled report${handled.length===1?'':'s'} (dismissed or resolved)</span>
+      <button class="btn bad" style="margin:0" onclick="clearHandled()">Clear handled</button></div>`:'')+rs.map(r=>{
+    const t=r.target_type==='post'?P[r.target_id]:r.target_type==='comment'?C[r.target_id]:null;
+    const a=t?U[t.author_id]:(r.target_type==='user'?U[r.target_id]:null);
+    const rep=U[r.reporter_id];
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+        <div><span class="pill ${esc(r.status)}">${esc(r.status)}</span> <b style="font-size:16px">${esc(r.reason)}</b></div>
+        <span class="meta">${when(r.created_at)}</span></div>
+      <div class="meta" style="margin-top:8px">Reported ${esc(r.target_type)} · by ${esc(rep?rep.handle:'unknown')}</div>
+      ${t?`<div class="quote">${esc(t.body)}</div>`
+        :(r.target_type==='post'||r.target_type==='comment')?'<div class="quote meta">Content already removed.</div>':''}
+      ${a?`<div class="meta" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${blob(a.handle,28)}
+        <b>${esc(a.handle)}</b> → <span class="real">${esc(a.real_name)} · ${esc(a.email)}</span>
+        <span class="pill ${a.status}">${a.status}</span></div>`:''}
+      ${r.status==='open'?`<div>
+        <button class="btn" onclick="resolve(${r.id},'dismissed')">Dismiss</button>
+        ${t?`<button class="btn brand" onclick="removeContent(${r.id},'${r.target_type}',${r.target_id})">Remove content</button>`:''}
+        ${a&&a.id!==me.id?`<button class="btn ok" onclick="setStatus(${a.id},'suspended',${r.id})">Suspend author</button>
+        <button class="btn bad" onclick="setStatus(${a.id},'banned',${r.id})">Ban author</button>`:''}
+        <button class="btn" onclick="delReports([${r.id}])">Delete</button>
+      </div>`:`<div><button class="btn" onclick="delReports([${r.id}])">Delete</button></div>`}</div>`}).join('');
+}
+async function delReports(ids){
+  if(!ids.length)return;
+  if(!confirm(ids.length===1?'Delete this report? The deletion is recorded in the Audit log.':'Delete '+ids.length+' handled reports? Each deletion is recorded in the Audit log.'))return;
+  const {error}=await sb.rpc('aces_admin_delete_reports',{p_ids:ids});
+  if(error)return alert(error.message);
+  render();
+}
+function clearHandled(){delReports(window._handled||[])}
+async function resolve(id,status,note){
+  const {error}=await sb.from('aces_reports').update({status}).eq('id',id);
+  if(error)return alert(error.message);
+  await logAction('report_'+status,'report',id,note||null);render();
+}
+async function removeContent(rid,type,tid){
+  if(!confirm('Remove this '+type+'? This cannot be undone.'))return;
+  const {error}=await sb.from(type==='post'?'aces_posts':'aces_comments').delete().eq('id',tid);
+  if(error)return alert(error.message);
+  await logAction('remove_'+type,type,tid,'from report #'+rid);
+  resolve(rid,'resolved','content removed');
+}
+async function setStatus(uid,status,rid){
+  const note=prompt((status==='banned'
+    ?'Ban: all their sessions end and their email leaves the whitelist.\n\n':'')+'Reason for '+status+':');
+  if(note===null)return;
+  const {error}=await sb.rpc('aces_admin_set_status',{p_user_id:uid,p_status:status,p_notes:note});
+  if(error)return alert(error.message);
+  if(rid)await resolve(rid,'resolved',status);else render();
+}
+
+async function members(){
+  const {data,error}=await sb.from('aces_users').select('*').order('created_at',{ascending:false});
+  if(error)throw error;
+  $('view').innerHTML=`<div class="card"><table>
+    <tr><th>Handle</th><th>Real identity</th><th>Role</th><th>Status</th><th>Joined</th><th></th></tr>
+    ${data.map(u=>`<tr>
+      <td><div style="display:flex;align-items:center;gap:8px">${blob(u.handle,30)}<b>${esc(u.handle)}</b></div></td>
+      <td><span class="real">${esc(u.real_name)}</span><div class="meta">${esc(u.email)}</div></td>
+      <td>${esc(u.role)}</td><td><span class="pill ${u.status}">${u.status}</span></td>
+      <td class="meta">${when(u.created_at)}</td>
+      <td>${u.id===me.id?'<span class="meta">you</span>'
+        :u.status==='active'?`<button class="btn ok" onclick="setStatus(${u.id},'suspended')">Suspend</button><button class="btn bad" onclick="setStatus(${u.id},'banned')">Ban</button>`
+        :`<button class="btn" onclick="setStatus(${u.id},'active')">Reinstate</button>`}</td></tr>`).join('')}
+  </table></div>`;
+}
+
+async function whitelist(){
+  const {data,error}=await sb.from('aces_whitelist').select('*').order('created_at',{ascending:false});
+  if(error)throw error;
+  $('view').innerHTML=`
+    <div class="card"><b style="font-size:16px">Add an ACES member</b>
+      <p class="meta" style="margin:6px 0 12px">Only emails on this list can create a Circuit profile.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap"><input id="wl" type="email" placeholder="member@email.com" style="flex:1;min-width:220px">
+      <button class="btn brand" onclick="addWl()">Add</button></div><div class="err" id="wlerr"></div></div>
+    <div class="card"><table><tr><th>Email</th><th>Added</th><th></th></tr>
+    ${data.map(w=>`<tr><td>${esc(w.email)}</td><td class="meta">${when(w.created_at)}</td>
+      <td><button class="btn" onclick="rmWl(${w.id},'${esc(w.email)}')">Remove</button></td></tr>`).join('')
+      ||'<tr><td colspan="3" class="empty">No emails yet.</td></tr>'}</table></div>`;
+}
+async function addWl(){
+  const e=$('wl').value.trim().toLowerCase();
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)){$('wlerr').textContent='Enter a valid email.';return}
+  const {data:ex}=await sb.from('aces_whitelist').select('id').ilike('email',e);
+  if(ex&&ex.length){$('wlerr').textContent='Already on the list.';return}
+  const {data,error}=await sb.from('aces_whitelist').insert({email:e,added_by:me.id}).select().single();
+  if(error){$('wlerr').textContent=error.message;return}
+  await logAction('whitelist_add','whitelist',data.id,e);render();
+}
+async function rmWl(id,e){
+  if(!confirm('Remove '+e+'? They will not be able to create a profile.'))return;
+  const {error}=await sb.from('aces_whitelist').delete().eq('id',id);
+  if(error)return alert(error.message);
+  await logAction('whitelist_remove','whitelist',id,e);render();
+}
+
+async function logins(){
+  const {data,error}=await sb.rpc('aces_admin_logins');
+  if(error)throw error;
+  $('view').innerHTML=`<div class="card">
+    <p class="meta" style="margin-bottom:12px">Most recent sign-ins first.</p>
+    <table><tr><th>Handle</th><th>Real identity</th><th>Status</th><th>Last sign-in</th></tr>
+    ${data.map(u=>`<tr><td><div style="display:flex;align-items:center;gap:8px">${blob(u.handle,30)}<b>${esc(u.handle)}</b></div></td>
+      <td><span class="real">${esc(u.real_name)}</span><div class="meta">${esc(u.email)}</div></td>
+      <td><span class="pill ${u.status}">${u.status}</span></td><td>${when(u.last_sign_in_at)}</td></tr>`).join('')}
+    </table></div>`;
+}
+
+async function audit(){
+  const {data,error}=await sb.from('aces_audit_log').select('*').order('created_at',{ascending:false}).limit(200);
+  if(error)throw error;
+  const {data:us}=await sb.from('aces_users').select('id,handle');
+  const U={};(us||[]).forEach(u=>U[u.id]=u.handle);
+  $('view').innerHTML=`<div class="card">
+    <p class="meta" style="margin-bottom:12px">Every officer action is recorded here and cannot be edited or deleted.</p>
+    <table><tr><th>When</th><th>Officer</th><th>Action</th><th>Target</th><th>Notes</th></tr>
+    ${data.map(a=>`<tr><td class="meta">${when(a.created_at)}</td><td>${esc(U[a.admin_id]||a.admin_id)}</td>
+      <td><b>${esc(a.action)}</b></td><td class="meta">${esc(a.target_type)} #${esc(a.target_id)}</td>
+      <td>${esc(a.notes)}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">No actions yet.</td></tr>'}
+    </table></div>`;
+}
+boot();
+</script>
+</body>
+</html>

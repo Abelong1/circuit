@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Circuit</title>
+<meta name="description" content="The ACES members-only community.">
+<meta name="theme-color" content="#C9472F">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Circuit">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://hlthachyodyncnfkpqwo.supabase.co" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/logo.js?v=16"></script>
+<style>
+:root{
+  --sand:#EFE2D2;--paper:#FBF3E8;--card:#fff;--brand:#C9472F;--soft:#E4694F;
+  --ink:#1E1210;--muted:#8A4A3C;--body:#5A2E25;--line:#EADBC8;
+  --okbg:#D4F0E6;--okink:#1D6B53;--warn:#C9472F;
+  --r:24px;--rail:248px;
+  color-scheme:light;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow-x:clip}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{overscroll-behavior-y:contain;-webkit-tap-highlight-color:transparent}
+button,a,input,textarea,label{touch-action:manipulation}
+body{background:var(--sand);color:var(--ink);font-family:Nunito,system-ui,-apple-system,sans-serif;font-weight:500;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.fd{font-family:Fredoka,Nunito,sans-serif;font-weight:700}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;transition:transform .08s,opacity .08s}
+button:active,a.rowcard:active{transform:scale(.96);opacity:.8}
+.hide{display:none!important}
+
+#auth{min-height:100dvh;display:grid;place-items:center;padding:24px;background:var(--paper)}
+.authbox{width:100%;max-width:420px}
+.authbox .logo{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:26px;text-align:center}
+.authbox h1{font-size:46px;color:var(--brand);line-height:1}
+.authbox .tag{color:var(--muted);font-weight:700;font-size:15px}
+label{display:block;font-size:13px;font-weight:700;color:var(--muted);margin:16px 0 6px}
+input,textarea{width:100%;background:var(--card);border:2px solid var(--line);border-radius:18px;padding:13px 18px;font-size:16px;outline:none}
+input:focus,textarea:focus{border-color:var(--soft)}
+textarea{resize:none;line-height:1.45}
+.primary{width:100%;height:56px;border-radius:28px;background:var(--brand);color:#fff;font-size:17px;font-weight:700;margin-top:20px}
+.primary:disabled{opacity:.6}
+.secondary{width:100%;height:56px;border-radius:28px;border:2px solid var(--brand);color:var(--brand);font-size:17px;font-weight:700;margin-top:12px;background:none}
+.tiny{height:44px;border-radius:22px;padding:0 18px;font-size:14px;font-weight:700;background:var(--brand);color:#fff;flex:none}
+.tiny.ghost{background:var(--paper);color:var(--body);border:2px solid var(--line)}
+.tiny.ok{background:var(--okbg);color:var(--okink)}
+.tiny.ic{display:inline-flex;align-items:center;gap:6px;padding:0 16px}
+.linkbtn{display:block;width:100%;text-align:center;color:var(--brand);font-weight:700;font-size:15px;margin-top:18px}
+.terms{display:flex;gap:12px;align-items:flex-start;margin-top:18px;font-size:13px;color:var(--body);line-height:1.5}
+.terms input{width:22px;height:22px;flex:none;margin-top:2px;accent-color:var(--brand)}
+.err{color:var(--warn);font-weight:700;font-size:14px;margin-top:12px;min-height:1px}
+
+#shell{display:none;min-height:100dvh;background:var(--paper)}
+#shell.on{display:block}
+main{display:flex;flex-direction:column;min-height:100dvh;width:100%;max-width:620px;margin:0 auto;
+     padding-bottom:calc(104px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;gap:12px;padding:calc(18px + env(safe-area-inset-top)) 20px 10px;position:sticky;top:0;background:var(--paper);z-index:5}
+header h2{font-size:27px;color:var(--brand);flex:1;display:flex;align-items:center;gap:10px;min-width:0}
+header h2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.back{color:var(--brand);font-weight:700;font-size:15px;display:flex;align-items:center;gap:4px;flex:none}
+#view{flex:1;padding:4px 20px 20px}
+
+#rail{position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));height:64px;
+  background:var(--card);border:2px solid var(--line);border-radius:32px;display:flex;align-items:center;
+  justify-content:space-around;padding:0 6px;z-index:20;box-shadow:0 6px 20px rgba(90,46,37,.10);max-width:560px;margin:0 auto}
+#rail button{height:44px;min-width:44px;border-radius:22px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 12px;color:var(--muted);position:relative}
+#rail button.on{background:var(--brand);color:#fff;padding:0 16px}
+#rail button span{font-size:13px;font-weight:700;display:none}
+#rail button.on span{display:inline}
+.dot{position:absolute;top:6px;right:8px;width:9px;height:9px;border-radius:5px;background:var(--brand);border:2px solid var(--card)}
+
+.card{background:var(--card);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.rowcard{background:var(--card);border-radius:var(--r);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px}
+.rowcard b{font-size:15px}
+.who{display:flex;align-items:center;gap:10px;min-width:0}
+.who .nm{font-weight:700;font-size:15px}
+.who .tm{font-size:12px;color:var(--muted)}
+.ptext{margin:12px 0;font-size:15px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.more{color:var(--brand);font-weight:700;font-size:14px;margin-bottom:10px}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.act{height:44px;border-radius:22px;background:var(--paper);color:var(--body);font-size:13px;font-weight:700;padding:0 16px;display:flex;align-items:center;gap:6px}
+.act.on{background:var(--brand);color:#fff}
+.act.flag{margin-left:auto;padding:0 14px}
+.pill{font-size:12px;font-weight:700;border-radius:12px;padding:4px 10px;background:var(--okbg);color:var(--okink);flex:none}
+.pill.feed{background:var(--paper);color:var(--muted);border:2px solid var(--line)}
+.empty{text-align:center;color:var(--muted);padding:44px 16px;font-size:15px;line-height:1.5}
+.sec{font-size:14px;font-weight:700;color:var(--muted);margin:18px 0 10px;display:flex;align-items:center;gap:8px}
+.count{background:var(--brand);color:#fff;border-radius:11px;font-size:12px;padding:1px 9px}
+
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 20px 12px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;height:42px;border-radius:21px;background:var(--card);border:2px solid var(--line);color:var(--body);font-size:14px;font-weight:700;padding:0 18px}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+
+.announce{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:2px solid var(--brand);border-radius:var(--r);padding:14px 16px;margin-bottom:12px}
+.announce .ic{font-size:22px;line-height:1;flex:none;margin-top:2px}
+.announce .lbl{font-family:Fredoka,sans-serif;font-weight:700;font-size:13px;letter-spacing:.06em;color:var(--brand);text-transform:uppercase}
+.announce p{margin-top:4px;font-size:15px;line-height:1.5;color:var(--body);white-space:pre-wrap;word-break:break-word}
+.announce .ed{margin-left:auto;color:var(--brand);font-weight:700;font-size:13px;flex:none}
+.pimg{display:block;width:100%;max-height:480px;border-radius:16px;overflow:hidden;background:rgba(0,0,0,.06);margin:10px 0}
+.pimg img{display:block;width:100%;height:100%;object-fit:cover}
+.photo-pick{display:flex;align-items:center;gap:10px;margin-top:10px}
+.photo-prev{position:relative;margin-top:10px;border-radius:16px;overflow:hidden}
+.photo-prev img{display:block;width:100%;max-height:260px;object-fit:cover}
+.photo-prev button{position:absolute;top:8px;right:8px;background:rgba(30,18,16,.7);color:#fff;border-radius:16px;padding:6px 12px;font-weight:700;font-size:13px}
+.prompt{display:flex;align-items:center;gap:10px;width:100%;background:var(--card);border-radius:var(--r);padding:12px 16px;text-align:left;color:var(--muted);font-size:15px;margin-bottom:12px}
+
+/* chat */
+.mrow{display:flex;align-items:flex-end;gap:6px;margin-bottom:8px}
+.mrow.mine{flex-direction:row-reverse}
+.bub{max-width:78%;padding:12px 16px;border-radius:20px;font-size:15px;line-height:1.45;word-break:break-word;white-space:pre-wrap}
+.mrow.mine .bub{background:var(--brand);color:#fff;border-bottom-right-radius:6px}
+.mrow.theirs .bub{background:var(--card);border-bottom-left-radius:6px}
+.bub.unsent{background:none!important;color:var(--muted)!important;border:2px dashed var(--line);font-style:italic}
+.bub .from{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:2px}
+.bub a:has(img){display:block;width:260px;max-width:100%;aspect-ratio:4/3;border-radius:14px;overflow:hidden;background:rgba(0,0,0,.06);margin:2px 0}
+.bub img{display:block;width:100%;height:100%;object-fit:cover}
+.bub>img{width:260px;max-width:100%;height:auto;aspect-ratio:4/3;border-radius:14px;margin:2px 0}
+.bub.photo{padding:4px}
+.bub.photo .from{padding:4px 8px 2px}
+.bub .file{display:flex;align-items:center;gap:8px;font-weight:700;text-decoration:underline;color:inherit}
+.mmenu{width:32px;height:32px;border-radius:16px;color:var(--muted);font-size:18px;line-height:1;flex:none;opacity:.7}
+.mmenu:hover{background:var(--card);opacity:1}
+#ft{position:fixed;left:0;right:0;bottom:0;background:var(--paper);padding:12px 20px calc(92px + env(safe-area-inset-bottom));
+    display:flex;gap:8px;align-items:center;max-width:620px;margin:0 auto;flex-wrap:wrap}
+#ft input[type=text],#ft #mg,#ft #cm{flex:1;min-width:0}
+@media (max-width:899px){
+  body.typing #rail{display:none}
+  body.typing main{padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+  body.typing #ft{padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+}
+.attach{width:44px;height:44px;border-radius:22px;background:var(--card);border:2px solid var(--line);color:var(--body);display:flex;align-items:center;justify-content:center;flex:none}
+.pending-file{width:100%;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--body);background:var(--card);border-radius:14px;padding:8px 12px}
+.pending-file button{margin-left:auto;color:var(--brand);font-weight:700}
+.check{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:18px;padding:10px 14px;margin-bottom:8px;cursor:pointer}
+.check input{width:22px;height:22px;flex:none;accent-color:var(--brand)}
+
+#sheet{position:fixed;inset:0;background:rgba(30,18,16,.45);display:none;align-items:flex-end;z-index:40}
+#sheet.on{display:flex}
+.sheetin{background:var(--paper);width:100%;max-width:620px;margin:0 auto;border-radius:28px 28px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));max-height:88dvh;overflow-y:auto}
+.sheetin h3{font-size:21px;color:var(--brand);margin-bottom:14px}
+.catrow{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + env(safe-area-inset-bottom));
+  background:var(--ink);color:#fff;padding:12px 20px;border-radius:22px;font-size:14px;font-weight:700;z-index:60;
+  opacity:0;pointer-events:none;transition:opacity .2s;max-width:88vw;text-align:center}
+#toast.on{opacity:1}
+#offline{display:none;background:var(--brand);color:#fff;text-align:center;font-size:13px;font-weight:700;padding:7px}
+#offline.on{display:block}
+
+#rail .brand{display:none}
+#aside{display:none}
+@media (min-width:900px){
+  #shell.on{display:grid;grid-template-columns:var(--rail) 1fr}
+  #rail{position:fixed;left:0;top:0;bottom:0;right:auto;width:var(--rail);max-width:none;height:100dvh;margin:0;
+    border-radius:0;border:0;border-right:2px solid var(--line);flex-direction:column;justify-content:flex-start;
+    align-items:stretch;padding:24px 16px;gap:6px;box-shadow:none;background:var(--paper)}
+  #rail .brand{display:flex;align-items:center;gap:10px;padding:4px 10px 22px;font-family:Fredoka,sans-serif;font-weight:700;font-size:26px;color:var(--brand)}
+  #rail button{height:52px;border-radius:26px;justify-content:flex-start;padding:0 18px;gap:14px}
+  #rail button span{display:inline;font-size:16px}
+  #rail button.on{padding:0 18px}
+  .dot{top:14px;right:auto;left:34px}
+  main{grid-column:2;padding-bottom:40px;max-width:760px}
+  header{padding-top:28px}
+  header .hdlogo{display:none}
+  #ft{position:sticky;left:auto;right:auto;bottom:0;padding:12px 20px 20px;max-width:760px}
+  .sheetin{border-radius:28px;margin:auto;max-width:520px;padding-bottom:22px}
+  #sheet{align-items:center;padding:24px}
+  #toast{bottom:32px;left:auto;right:32px;transform:none}
+}
+@media (min-width:1024px){
+  header h2{font-size:30px}
+  .ptext,.bub,.prompt,input,textarea{font-size:16.5px}
+  .who .nm,.rowcard b{font-size:16.5px}
+  .who .tm{font-size:13px}
+  .chip{height:46px;font-size:15px;padding:0 22px}
+  .act{height:46px;font-size:14px}
+  .card{padding:20px}
+}
+@media (min-width:1200px){
+  #shell.on{grid-template-columns:var(--rail) 1fr 320px}
+  #aside{display:block;grid-column:3;position:sticky;top:0;height:100dvh;overflow-y:auto;padding:28px 24px;border-left:2px solid var(--line)}
+  #aside .card{text-align:left}
+  #aside h3{font-size:18px;color:var(--brand);margin-bottom:10px}
+  #aside .qlink{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:16px;font-weight:700;color:var(--body);text-align:left}
+  #aside .qlink:hover{background:var(--paper)}
+}
+.av{position:relative;flex:none;display:inline-flex}
+.ubadge{position:absolute;top:-5px;right:-7px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#E5322D;color:#fff;font:700 11px/18px system-ui,sans-serif;text-align:center;border:2px solid var(--card);box-sizing:content-box}
+.unread .pv{color:var(--ink)!important;font-weight:700}
+</style>
+</head>
+<body>
+
+<div id="auth">
+  <div class="authbox">
+    <div class="logo" id="authlogo"></div>
+    <div id="f-login">
+      <label for="li-em">Email</label>
+      <input id="li-em" type="email" autocomplete="email" placeholder="you@email.com">
+      <label for="li-pw">Password</label>
+      <input id="li-pw" type="password" autocomplete="current-password" placeholder="Your password">
+      <button class="primary" onclick="doLogin()">Log in</button>
+      <div class="err" id="li-err"></div>
+      <button class="linkbtn" onclick="swap('signup')">New here? Create an account</button>
+    </div>
+    <div id="f-signup" class="hide">
+      <label for="su-em">ACES email</label>
+      <input id="su-em" type="email" autocomplete="email" placeholder="you@email.com">
+      <label for="su-pw">Password</label>
+      <input id="su-pw" type="password" autocomplete="new-password" placeholder="At least 6 characters">
+      <div class="terms"><input type="checkbox" id="su-tc"><span>I have read and accept the Circuit Terms &amp; Community Policy, including that ACES officers can see the real identity behind any handle.</span></div>
+      <button class="primary" onclick="doSignup()">Create account</button>
+      <div class="err" id="su-err"></div>
+      <button class="linkbtn" onclick="swap('login')">Already have an account? Log in</button>
+    </div>
+  </div>
+</div>
+
+<div id="shell">
+  <nav id="rail"></nav>
+  <main>
+    <div id="offline">You're offline — showing what's already loaded.</div>
+    <header id="hd"></header>
+    <div id="chipbar"></div>
+    <div id="view"></div>
+    <div id="ft" class="hide"></div>
+  </main>
+  <aside id="aside"></aside>
+</div>
+
+<div id="sheet"><div class="sheetin"><h3 id="shtitle"></h3><div id="shbody"></div>
+<button class="linkbtn" onclick="closeSheet()">Cancel</button></div></div>
+<div id="toast"></div>
+<input type="file" id="filepick" class="hide">
+
+<script>
+const SB_URL='https://hlthachyodyncnfkpqwo.supabase.co';
+const SB_KEY='sb_publishable_U_R4sJ3a8WS8beFADkKwIA_RBASwACA';
+const sb=supabase.createClient(SB_URL,SB_KEY);
+const $=i=>document.getElementById(i);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ago=t=>{const d=(Date.now()-new Date(t))/1000;
+  if(d<60)return'just now';if(d<3600)return Math.floor(d/60)+'m ago';
+  if(d<86400)return Math.floor(d/3600)+'h ago';if(d<172800)return'yesterday';
+  return Math.floor(d/86400)+'d ago'};
+const MAXFILE=10*1024*1024;
+
+const ICON={
+ home:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>',
+ friends:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3.2-5.5 7-5.5s7 2 7 5.5"/><path d="M17 8.5a3 3 0 0 1 0 5M19 20c0-2.5-1-4-2.5-5"/></svg>',
+ msgs:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+ me:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>',
+ groupadd:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5"/><path d="M19 8v6M16 11h6"/></svg>',
+ trash:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+ flag:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4h12l-2 4 2 4H5"/></svg>',
+ clip:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11l-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 7"/></svg>',
+ group:'<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#F3D9C9"/><circle cx="15" cy="17" r="5" fill="#C9472F"/><circle cx="26" cy="17" r="5" fill="#E4694F"/><path d="M6 32c1-5 5-8 9-8s8 3 9 8M17 32c1-5 5-8 9-8s8 3 9 8" fill="#C9472F" opacity=".85"/></svg>'};
+
+let me=null,screen='home',feed='all',posts=[],handles={},openPost=null,
+    conv=null,chan=null,bookmarks=new Set(),expanded=new Set(),pending=0,
+    convMeta={},msgCache={},convMembers={},pendingFile=null;
+const FEEDS=[['all','All'],['moments','Moments'],['help','Help'],['hiring','Hiring'],['saved','Saved']];
+const NAV=[['home','Home'],['friends','Friends'],['msgs','Messages'],['me','Profile']];
+const FEEDNAME={moments:'Moments',help:'Help',hiring:'Hiring'};
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),2600)}
+function swap(w){$('f-login').classList.toggle('hide',w!=='login');$('f-signup').classList.toggle('hide',w!=='signup')}
+
+async function doSignup(){
+  const e=$('su-err');e.textContent='';
+  const em=$('su-em').value.trim(),pw=$('su-pw').value;
+  if(!em||!pw)return e.textContent='Fill in both fields.';
+  if(!$('su-tc').checked)return e.textContent='Please accept the Terms to continue.';
+  const {error}=await sb.auth.signUp({email:em,password:pw});
+  if(error)return e.textContent=error.message;
+  const {error:e2}=await sb.auth.signInWithPassword({email:em,password:pw});
+  if(e2)return e.textContent='Account created. Now log in above.';
+  boot(m=>e.textContent=m);
+}
+async function doLogin(){
+  const e=$('li-err');e.textContent='';
+  const {error}=await sb.auth.signInWithPassword({email:$('li-em').value.trim(),password:$('li-pw').value});
+  if(error)return e.textContent=error.message;
+  boot(m=>e.textContent=m);
+}
+async function logout(){if(chan)sb.removeChannel(chan);await sb.auth.signOut();location.reload()}
+
+async function boot(onerr){
+  $('authlogo').innerHTML=blob('circuit',110,'#CF6A4F')+'<h1>Circuit</h1><div class="tag">the ACES community</div>';
+  const {data:{session}}=await sb.auth.getSession();
+  if(!session){$('auth').style.display='grid';$('shell').classList.remove('on');return}
+  const {data,error}=await sb.rpc('aces_ensure_profile');
+  if(error){await sb.auth.signOut();$('auth').style.display='grid';$('shell').classList.remove('on');
+    (onerr||(m=>$('li-err').textContent=m))(error.message);return}
+  me=data;watchInbox();
+  $('auth').style.display='none';$('shell').classList.add('on');
+  const {data:bm}=await sb.from('aces_bookmarks').select('post_id');
+  bookmarks=new Set((bm||[]).map(b=>b.post_id));
+  refreshPending();
+  go('home');
+}
+async function refreshPending(){
+  const {data}=await sb.rpc('aces_my_friends');
+  pending=(data||[]).filter(f=>f.direction==='incoming').length;
+  paintNav();paintAside();
+}
+
+function paintNav(){
+  const brand=`<div class="brand">${blob('circuit',34,'#CF6A4F')}Circuit</div>`;
+  $('rail').innerHTML=brand+NAV.map(([k,l])=>
+    `<button class="${k===screen?'on':''}" onclick="go('${k}')" aria-label="${l}">${ICON[k]}<span>${l}</span>${k==='friends'&&pending?'<i class="dot"></i>':''}</button>`).join('');
+}
+function paintAside(){
+  if(!me)return;
+  $('aside').innerHTML=`
+    <div class="card" style="display:flex;align-items:center;gap:12px">${blob(me.handle,48)}
+      <div style="min-width:0"><div class="fd" style="font-size:19px;color:var(--brand)">${esc(me.handle)}</div>
+      <div style="font-size:13px;color:var(--muted)">Your handle</div></div></div>
+    ${pending?`<button class="card" style="width:100%;text-align:left;display:flex;align-items:center;gap:10px" onclick="go('friends')">
+      <b style="flex:1">Friend requests</b><span class="count">${pending}</span></button>`:''}
+    <div class="card"><h3>Jump to</h3>
+      ${FEEDS.filter(f=>f[0]!=='all').map(([k,l])=>`<button class="qlink" onclick="feed='${k}';go('home')">${l}<span style="margin-left:auto;color:var(--muted)">›</span></button>`).join('')}
+      <button class="qlink" onclick="go('msgs');setTimeout(newGroup,50)">New group chat<span style="margin-left:auto;color:var(--muted)">›</span></button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.5;padding:0 6px">Chats are private. ACES officers cannot read them.</p>`;
+}
+function go(s){
+  screen=s;paintNav();
+  document.body.classList.toggle('typing',s==='chat'||s==='post');
+  $('ft').classList.add('hide');$('ft').innerHTML='';pendingFile=null;
+  $('chipbar').innerHTML='';$('chipbar').className='';$('view').innerHTML='';
+  if(s!=='chat'&&chan){sb.removeChannel(chan);chan=null}
+  ({home:scrHome,post:scrPost,friends:scrFriends,msgs:scrMsgs,chat:scrChat,me:scrMe})[s]();
+  window.scrollTo(0,0);
+}
+function hdr(title,opts={}){
+  const back=opts.back?`<button class="back" onclick="go('${opts.back}')">‹ Back</button>`:'';
+  const logo=opts.logo?`<span class="hdlogo" style="display:flex">${blob('circuit',36,'#CF6A4F')}</span>`:'';
+  const right=opts.right||'';
+  $('hd').innerHTML=`${back}<h2>${logo}<span>${esc(title)}</span></h2>${right}`;
+}
+
+function scrHome(){
+  hdr(feed==='all'?'Circuit':(FEEDNAME[feed]||'Saved'),{logo:true});
+  $('chipbar').className='chips';
+  $('chipbar').innerHTML=FEEDS.map(([k,l])=>`<button class="chip ${k===feed?'on':''}" onclick="feed='${k}';scrHome()">${l}</button>`).join('');
+  $('view').innerHTML=`<div id="annbox">${annHtml()}</div><button class="prompt" onclick="openCompose()">${blob(me.handle,36)}Share something with the Aces</button><div id="feedlist">${feedCache[feed]||'<div class="empty">Loading…</div>'}</div>`;
+  $('feedlist')._h=feedCache[feed];$('annbox')._h=annHtml();
+  loadAnnouncement();loadFeed();
+}
+let annText='',feedCache={};
+try{annText=localStorage.getItem('circuit-ann')||''}catch(e){}
+async function loadAnnouncement(){
+  const {data}=await sb.from('aces_announcement').select('body').eq('id',1).maybeSingle();
+  annText=(data&&data.body)||'';
+  try{localStorage.setItem('circuit-ann',annText)}catch(e){}
+  const box=$('annbox');if(!box)return;
+  const h=annHtml();if(box._h!==h){box.innerHTML=h;box._h=h}
+}
+function annHtml(){
+  const admin=me&&me.role==='admin';
+  if(!annText&&!admin)return '';
+  return `<div class="announce"><span class="ic" aria-hidden="true">📢</span>
+    <div style="flex:1;min-width:0"><div class="lbl">ACES Announcement</div>
+    <p>${annText?esc(annText):'<span style="color:var(--muted)">No announcement right now.</span>'}</p></div>
+    ${admin?'<button class="ed" onclick="editAnnouncement()">Edit</button>':''}</div>`;
+}
+function editAnnouncement(){
+  $('shtitle').textContent='ACES Announcement';
+  $('shbody').innerHTML=`<textarea id="ann" rows="4" maxlength="500" placeholder="Leave empty to hide the bar">${esc(annText)}</textarea>
+    <button class="primary" onclick="saveAnnouncement()">Save</button><div class="err" id="aerr"></div>`;
+  $('sheet').classList.add('on');setTimeout(()=>$('ann').focus(),80);
+}
+async function saveAnnouncement(){
+  const {error}=await sb.rpc('aces_set_announcement',{p_body:$('ann').value});
+  if(error)return $('aerr').textContent=error.message;
+  closeSheet();toast('Announcement updated');loadAnnouncement();
+}
+async function loadFeed(){
+  const box=()=>$('feedlist');if(!box())return;
+  let q=sb.from('aces_posts').select('*').order('created_at',{ascending:false}).limit(60);
+  if(feed!=='all'&&feed!=='saved')q=q.eq('feed',feed);
+  const hq=sb.from('aces_handles').select('id,handle').then(({data:hs})=>{handles={};(hs||[]).forEach(h=>handles[h.id]=h.handle)});
+  const [{data,error}]=await Promise.all([q,Object.keys(handles).length?Promise.resolve():hq]);
+  if(!box())return;
+  if(error)return box().innerHTML=`<div class="empty">${esc(error.message)}</div>`;
+  posts=data||[];
+  const show=feed==='saved'?posts.filter(p=>bookmarks.has(p.id)):posts;
+  box()._h=null;
+  if(!show.length)return box().innerHTML=`<div class="empty">${feed==='saved'
+    ?'Nothing saved yet.<br>Tap Save on a post to keep it here.'
+    :'Nothing here yet.<br>Be the first to post.'}</div>`;
+  const ids=show.map(p=>p.id);
+  await signPostPhotos(show);if(!box())return;
+  const [{data:rx},{data:cc}]=await Promise.all([
+    sb.from('aces_reactions').select('target_id,user_id').eq('target_type','post').in('target_id',ids),
+    sb.from('aces_comments').select('post_id').in('post_id',ids)]);
+  if(!box())return;
+  const rc={},mine={},cn={};
+  (rx||[]).forEach(r=>{rc[r.target_id]=(rc[r.target_id]||0)+1;if(r.user_id===me.id)mine[r.target_id]=1});
+  likeCount=rc;liked=mine;
+  (cc||[]).forEach(c=>cn[c.post_id]=(cn[c.post_id]||0)+1);
+  const fh=show.map(p=>{
+    const h=handles[p.author_id]||'member',long=p.body.length>220,op=expanded.has(p.id);
+    return `<article class="card" id="post-${p.id}">
+      <div class="who">${blob(h,40)}<div style="flex:1;min-width:0"><div class="nm">${esc(h)}</div><div class="tm">${ago(p.created_at)}</div></div>
+      <span class="pill feed">${esc(FEEDNAME[p.feed]||p.feed)}</span></div>
+      ${p.body?`<p class="ptext ${long&&!op?'clamp':''}">${esc(p.body)}</p>`:''}
+      ${photoHtml(p)}
+      ${long?`<div class="more" onclick="expand(${p.id})">${op?'Show less':'Show more'}</div>`:''}
+      <div class="acts">
+        <button class="act ${mine[p.id]?'on':''}" onclick="react(${p.id},this)">♥ ${rc[p.id]||0}</button>
+        <button class="act" onclick="openDetail(${p.id})">Comment ${cn[p.id]||0}</button>
+        <button class="act ${bookmarks.has(p.id)?'on':''}" onclick="bookmark(${p.id},this)">${bookmarks.has(p.id)?'Saved':'Save'}</button>
+        ${p.author_id!==me.id?`<button class="act flag" onclick="report(${p.id})" aria-label="Report">${ICON.flag}</button>`
+          :`<button class="act flag" onclick="askDelete(${p.id})" aria-label="Delete post">${ICON.trash}</button>`}
+      </div></article>`}).join('');
+  feedCache[feed]=fh;
+  if(box()._h!==fh){box().innerHTML=fh;box()._h=fh}
+}
+function parsePhoto(p){if(!p.image_url)return null;const [path,w,h]=p.image_url.split('|');return {path,w:+w||4,h:+h||3}}
+async function signPostPhotos(list){
+  const now=Date.now(),need=list.map(parsePhoto).filter(Boolean).map(x=>x.path)
+    .filter(k=>!localPreview[k]&&(!urlCache['p:'+k]||urlCache['p:'+k].exp<now+600000));
+  if(!need.length)return;
+  const {data}=await sb.storage.from('posts').createSignedUrls(need,86400);
+  (data||[]).forEach(s=>{if(s.signedUrl)urlCache['p:'+s.path]={u:s.signedUrl,exp:now+86400000}});saveUrlCache();
+}
+function photoHtml(p){const x=parsePhoto(p);if(!x)return '';
+  const u=localPreview[x.path]||(urlCache['p:'+x.path]||{}).u;if(!u)return '';
+  return `<a class="pimg" href="${esc(u)}" target="_blank" rel="noopener" style="aspect-ratio:${x.w}/${x.h}"><img src="${esc(u)}" alt="Photo" decoding="async"></a>`}
+function expand(id){expanded.has(id)?expanded.delete(id):expanded.add(id);loadFeed()}
+let likeCount={},liked={};
+function paintLike(btn,id){if(!btn)return;btn.classList.toggle('on',!!liked[id]);btn.textContent='♥ '+(likeCount[id]||0)}
+async function react(id,btn){
+  const was=!!liked[id];
+  liked[id]=!was;likeCount[id]=(likeCount[id]||0)+(was?-1:1);paintLike(btn,id);
+  const {error}=was
+    ?await sb.from('aces_reactions').delete().eq('target_type','post').eq('target_id',id).eq('user_id',me.id)
+    :await sb.from('aces_reactions').insert({user_id:me.id,target_type:'post',target_id:id,emoji:'♥'});
+  if(error){liked[id]=was;likeCount[id]+=(was?1:-1);paintLike(btn,id);return toast(error.message)}
+  const b=$('feedlist');if(b)b._h=null;
+}
+function paintSave(btn,id){if(!btn)return;const on=bookmarks.has(id);btn.classList.toggle('on',on);btn.textContent=on?'Saved':'Save'}
+async function bookmark(id,btn){
+  const was=bookmarks.has(id);
+  was?bookmarks.delete(id):bookmarks.add(id);paintSave(btn,id);toast(was?'Removed from Saved':'Saved');
+  const {error}=was
+    ?await sb.from('aces_bookmarks').delete().eq('user_id',me.id).eq('post_id',id)
+    :await sb.from('aces_bookmarks').insert({user_id:me.id,post_id:id});
+  if(error){was?bookmarks.add(id):bookmarks.delete(id);paintSave(btn,id);return toast(error.message)}
+  feedCache={};const b=$('feedlist');if(b)b._h=null;
+  if(feed==='saved')loadFeed();
+}
+
+let draftFeed='moments';
+function openCompose(){
+  draftFeed=(feed==='all'||feed==='saved')?'moments':feed;
+  $('shtitle').textContent='Share something';
+  $('shbody').innerHTML=`<div class="catrow">${Object.keys(FEEDNAME).map(k=>
+    `<button class="chip ${k===draftFeed?'on':''}" id="cat-${k}" onclick="pickCat('${k}')">${FEEDNAME[k]}</button>`).join('')}</div>
+    <textarea id="pb" rows="5" placeholder="What's going on?"></textarea>
+    <div id="pprev"></div>
+    <div class="photo-pick"><button class="attach" onclick="pickPostPhoto()" aria-label="Add photo">${ICON.clip}</button><span style="color:var(--muted);font-size:14px;font-weight:700">Add a photo</span></div>
+    <button class="primary" id="postbtn" onclick="submitPost()">Post</button><div class="err" id="perr"></div>`;
+  draftPhoto=null;
+  $('sheet').classList.add('on');setTimeout(()=>$('pb').focus(),80);
+}
+function pickCat(k){draftFeed=k;Object.keys(FEEDNAME).forEach(x=>$('cat-'+x).classList.toggle('on',x===k))}
+function closeSheet(){$('sheet').classList.remove('on')}
+let draftPhoto=null;
+function pickPostPhoto(){
+  const fp=$('filepick');fp.value='';fp.accept='image/*';
+  fp.onchange=()=>{const f=fp.files[0];fp.accept='';if(!f)return;
+    if(!f.type.startsWith('image/'))return toast('Pick a photo.');
+    if(f.size>MAXFILE*2)return toast('That photo is over 20 MB.');
+    draftPhoto=f;$('pprev').innerHTML=`<div class="photo-prev"><img src="${URL.createObjectURL(f)}" alt=""><button onclick="draftPhoto=null;$('pprev').innerHTML=''">Remove</button></div>`};
+  fp.click();
+}
+async function submitPost(){
+  const b=$('pb').value.trim(),f=draftPhoto;
+  if(!b&&!f)return $('perr').textContent='Write something or add a photo.';
+  const btn=$('postbtn');btn.disabled=true;
+  const row={author_id:me.id,feed:draftFeed,body:b};
+  if(f){
+    btn.textContent='Uploading…';
+    const small=await shrinkImage(f,1600,0.82);
+    let w=4,h=3;try{const bm=await createImageBitmap(small);w=bm.width;h=bm.height}catch(e){}
+    const path=`${me.id}/${crypto.randomUUID()}.jpg`;
+    const {error:ue}=await sb.storage.from('posts').upload(path,small,{contentType:small.type||'image/jpeg',cacheControl:'31536000'});
+    if(ue){btn.disabled=false;btn.textContent='Post';return $('perr').textContent=ue.message}
+    localPreview[path]=URL.createObjectURL(small);row.image_url=`${path}|${w}|${h}`;
+  }
+  const {error}=await sb.from('aces_posts').insert(row);
+  btn.disabled=false;btn.textContent='Post';
+  if(error)return $('perr').textContent=error.message;
+  draftPhoto=null;closeSheet();feed=draftFeed;feedCache={};scrHome();toast('Posted');
+}
+function askDelete(id){
+  $('shtitle').textContent='Delete this post?';
+  $('shbody').innerHTML=`<p style="color:var(--body);line-height:1.5">Its comments go with it. This can't be undone.</p>
+    <button class="primary" onclick="delPost(${id})">Delete post</button>`;
+  $('sheet').classList.add('on');
+}
+async function delPost(id){
+  closeSheet();
+  const card=$('post-'+id);if(card)card.style.display='none';
+  const pp=parsePhoto(posts.find(x=>x.id===id)||{});
+  const {error}=await sb.from('aces_posts').delete().eq('id',id).eq('author_id',me.id);
+  if(error){if(card)card.style.display='';return toast(error.message)}
+  if(pp)sb.storage.from('posts').remove([pp.path]);
+  posts=posts.filter(p=>p.id!==id);feedCache={};bookmarks.delete(id);
+  const b=$('feedlist');if(b)b._h=null;
+  toast('Post deleted');
+  if(screen==='post')go('home');else{if(card)card.remove();loadFeed()}
+}
+function report(id){
+  $('shtitle').textContent='Report this post';
+  $('shbody').innerHTML=['Harassment or bullying','Spam or wrong feed','Scam or fake offer','Impersonation','Something else']
+    .map(r=>`<button class="rowcard" style="width:100%;text-align:left" onclick="sendReport(${id},'${r}')"><b style="flex:1">${r}</b><span>›</span></button>`).join('');
+  $('sheet').classList.add('on');
+}
+async function sendReport(id,reason){
+  const {error}=await sb.from('aces_reports').insert({reporter_id:me.id,target_type:'post',target_id:id,reason,status:'open'});
+  closeSheet();toast(error?error.message:'Reported — an ACES officer will review it.');
+}
+
+async function openDetail(id){openPost=id;go('post')}
+async function scrPost(){
+  hdr('Post',{back:'home'});
+  $('ft').classList.remove('hide');
+  $('ft').innerHTML=`<input id="cm" placeholder="Write a comment…"><button class="tiny" onclick="sendComment()">Send</button>`;
+  $('cm').addEventListener('keydown',e=>{if(e.key==='Enter')sendComment()});
+  const p=posts.find(x=>x.id===openPost);
+  if(!p)return $('view').innerHTML='<div class="empty">Post not found.</div>';
+  const h=handles[p.author_id]||'member';
+  const {data:cs}=await sb.from('aces_comments').select('*').eq('post_id',openPost).order('created_at');
+  if(screen!=='post')return;
+  $('view').innerHTML=`<article class="card">
+    <div class="who">${blob(h,40)}<div style="flex:1"><div class="nm">${esc(h)}</div><div class="tm">${ago(p.created_at)}</div></div>
+    <span class="pill feed">${esc(FEEDNAME[p.feed]||p.feed)}</span></div>
+    ${p.body?`<p class="ptext">${esc(p.body)}</p>`:''}
+    ${photoHtml(p)}
+    ${p.author_id===me.id?`<div class="acts"><button class="act flag" onclick="askDelete(${p.id})">${ICON.trash} Delete post</button></div>`:''}</article>
+    <div class="sec">${(cs||[]).length} comment${(cs||[]).length===1?'':'s'}</div>
+    ${(cs||[]).map(c=>{const ch=handles[c.author_id]||'member';
+      return `<article class="card"><div class="who">${blob(ch,32)}<div style="flex:1"><div class="nm">${esc(ch)}</div><div class="tm">${ago(c.created_at)}</div></div></div>
+      <p class="ptext" style="margin-bottom:0">${esc(c.body)}</p></article>`}).join('')
+      ||'<div class="empty">No comments yet. Start the thread.</div>'}`;
+}
+async function sendComment(){
+  const i=$('cm'),b=i.value.trim();if(!b)return;i.value='';
+  const {error}=await sb.from('aces_comments').insert({post_id:openPost,author_id:me.id,body:b});
+  if(error)return toast(error.message);
+  scrPost();
+}
+
+/* ---------- friends ---------- */
+async function scrFriends(){
+  hdr('Friends');
+  $('view').innerHTML=viewCache.friends||'<div class="empty">Loading…</div>';if(viewCache.friends)wireFriends();
+  const {data,error}=await sb.rpc('aces_my_friends');
+  if(screen!=='friends')return;
+  if(error)return $('view').innerHTML=`<div class="empty">${esc(error.message)}</div>`;
+  const inc=data.filter(f=>f.direction==='incoming'),
+        out=data.filter(f=>f.direction==='outgoing'),
+        fr=data.filter(f=>f.direction==='friend');
+  pending=inc.length;paintNav();paintAside();
+  const vh=`
+    <div class="card"><label for="fh" style="margin-top:0">Add a friend by handle</label>
+      <div style="display:flex;gap:8px"><input id="fh" placeholder="e.g. sleepycapacitor23" autocapitalize="none">
+      <button class="tiny" onclick="addFriend()">Add</button></div>
+      <div class="err" id="ferr"></div>
+      <p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5">Ask your friend for their handle first. Handles are randomly assigned so everyone stays anonymous.</p></div>
+    ${inc.length?`<div class="sec">Requests <span class="count">${inc.length}</span></div>`+inc.map(f=>
+      `<div class="rowcard">${blob(f.other_handle,36)}<b style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(f.other_handle)}</b>
+       <button class="tiny ok" onclick="accept(${f.id})">Accept</button>
+       <button class="tiny ghost" onclick="decline(${f.id},'Request declined')">Decline</button></div>`).join(''):''}
+    <div class="sec">Friends</div>
+    ${fr.map(f=>`<div class="rowcard">${blob(f.other_handle,36)}<b style="flex:1">${esc(f.other_handle)}</b>
+       <button class="tiny ghost" onclick="chatWith('${esc(f.other_handle)}')">Message</button></div>`).join('')
+      ||'<div class="empty">No friends yet.<br>Ask an ACES member for their handle.</div>'}
+    ${out.length?'<div class="sec">Sent</div>'+out.map(f=>
+      `<div class="rowcard">${blob(f.other_handle,36)}<b style="flex:1">${esc(f.other_handle)}</b>
+       <button class="tiny ghost" onclick="decline(${f.id},'Request cancelled')">Cancel</button></div>`).join(''):''}`;
+  if(vh!==viewCache.friends||!$('fh')){viewCache.friends=vh;$('view').innerHTML=vh;wireFriends()}
+}
+let viewCache={};
+function wireFriends(){const i=$('fh');if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter')addFriend()})}
+function wireMsgs(){const i=$('nh');if(i)i.addEventListener('keydown',e=>{if(e.key==='Enter')chatWith(i.value.trim())})}
+async function addFriend(){
+  const h=$('fh').value.trim();if(!h)return;
+  const {data,error}=await sb.rpc('aces_friend_request',{p_handle:h});
+  if(error)return $('ferr').textContent=error.message;
+  toast({requested:'Request sent.',accepted:'You are now friends.',already_friends:'Already friends.',already_requested:'Already requested.'}[data]||'Done');
+  scrFriends();
+}
+async function accept(id){
+  const {error}=await sb.rpc('aces_friend_accept',{p_id:id});
+  if(error)return toast(error.message);
+  toast('Friend added');scrFriends();
+}
+async function decline(id,msg){
+  const {error}=await sb.rpc('aces_friend_decline',{p_id:id});
+  if(error)return toast(error.message);
+  toast(msg);scrFriends();
+}
+
+/* ---------- messages list ---------- */
+/* unread counts: compares each chat's messages with my row in aces_conversation_reads (written by aces_mark_read in logo.js) */
+let inboxChan=null,inboxT=null;
+async function unreadCounts(ids){
+  if(!ids.length)return {};
+  const [{data:rd},{data}]=await Promise.all([
+    sb.from('aces_conversation_reads').select('conversation_id,last_read_at').eq('user_id',me.id).in('conversation_id',ids),
+    sb.from('aces_messages').select('conversation_id,created_at').in('conversation_id',ids).neq('sender_id',me.id).is('unsent_at',null).order('created_at',{ascending:false}).limit(1000)]);
+  const r={},n={};(rd||[]).forEach(x=>r[x.conversation_id]=new Date(x.last_read_at));
+  (data||[]).forEach(m=>{if(!r[m.conversation_id]||new Date(m.created_at)>r[m.conversation_id])n[m.conversation_id]=(n[m.conversation_id]||0)+1});
+  return n;
+}
+function watchInbox(){
+  if(inboxChan)return;
+  inboxChan=sb.channel('inbox').on('postgres_changes',{event:'INSERT',schema:'public',table:'aces_messages'},()=>{
+    if(screen==='msgs'){clearTimeout(inboxT);inboxT=setTimeout(scrMsgs,400)}
+  }).subscribe();
+}
+async function scrMsgs(){
+  hdr('Messages',{right:`<button class="tiny ic" onclick="newGroup()" aria-label="New group chat">${ICON.groupadd}<span>New group</span></button>`});
+  $('view').innerHTML=viewCache.msgs||'<div class="empty">Loading…</div>';if(viewCache.msgs)wireMsgs();
+  const {data,error}=await sb.rpc('aces_my_conversations');
+  if(screen!=='msgs')return;
+  if(error)return $('view').innerHTML=`<div class="empty">${esc(error.message)}</div>`;
+  (data||[]).forEach(c=>convMeta[c.conversation_id]={isGroup:c.is_group,title:c.is_group?(c.title||'Group'):(c.other_handle||'Chat'),others:c.other_handle||''});
+  const uc=await unreadCounts((data||[]).map(c=>c.conversation_id));if(screen!=='msgs')return;
+  const vh=`
+    <div class="card"><label for="nh" style="margin-top:0">Start a chat</label>
+      <div style="display:flex;gap:8px"><input id="nh" placeholder="Their handle" autocapitalize="none">
+      <button class="tiny" onclick="chatWith(document.getElementById('nh').value.trim())">Go</button></div></div>
+    ${(data||[]).map(c=>{const m=convMeta[c.conversation_id],u=uc[c.conversation_id]||0;
+      return `<div class="rowcard${u?' unread':''}" id="conv-${c.conversation_id}" role="button" style="cursor:pointer" onclick="openChat(${c.conversation_id})">
+      <span class="av">${m.isGroup?(typeof groupIcon==='function'?groupIcon(c.conversation_id,40):ICON.group):blob(c.other_handle,40)}${u?`<span class="ubadge">${u>99?'99+':u}</span>`:''}</span><div style="flex:1;min-width:0"><b>${esc(m.title)}</b>
+      <div class="pv" style="color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.isGroup?esc(m.others)+' · ':''}${esc(c.last_body||'No messages yet')}</div></div>
+      <button class="mmenu" onclick="event.stopPropagation();chatMenu(${c.conversation_id})" aria-label="Chat options">⋯</button></div>`}).join('')
+      ||'<div class="empty">No chats yet.<br>Your messages stay private — officers cannot read them.</div>'}`;
+  if(vh!==viewCache.msgs||!$('nh')){viewCache.msgs=vh;$('view').innerHTML=vh;wireMsgs()}
+}
+function chatMenu(id){
+  const m=convMeta[id]||{};
+  $('shtitle').textContent=m.title||'Chat';
+  $('shbody').innerHTML=`<button class="rowcard" style="width:100%;text-align:left" onclick="hideChat(${id})"><b style="flex:1">Delete chat</b><span style="color:var(--muted);font-size:13px">only for you</span></button>`
+    +(m.isGroup?`<button class="rowcard" style="width:100%;text-align:left" onclick="leaveGroup(${id})"><b style="flex:1">Leave group</b><span>›</span></button>`:'');
+  $('sheet').classList.add('on');
+}
+async function hideChat(id){
+  closeSheet();
+  const row=$('conv-'+id);if(row)row.style.display='none';
+  const {error}=await sb.rpc('aces_hide_conversation',{p_conv:id});
+  if(error){if(row)row.style.display='';return toast(error.message)}
+  viewCache.msgs=null;toast('Chat deleted');
+  if(screen==='msgs')scrMsgs();else go('msgs');
+}
+async function chatWith(h){
+  if(!h)return;
+  const {data,error}=await sb.rpc('aces_start_conversation',{other_handle:h});
+  if(error)return toast(error.message);
+  convMeta[data]={isGroup:false,title:h,others:h};
+  openChat(data);
+}
+async function friendHandles(){
+  const {data}=await sb.rpc('aces_my_friends');
+  return (data||[]).filter(f=>f.direction==='friend').map(f=>f.other_handle);
+}
+async function newGroup(){
+  const fr=await friendHandles();
+  $('shtitle').textContent='New group chat';
+  $('shbody').innerHTML=fr.length?`
+    <label for="gt" style="margin-top:0">Group name</label><input id="gt" maxlength="60" placeholder="e.g. CPE 3A study group">
+    <label>Add friends</label>
+    ${fr.map((h,i)=>`<label class="check" style="margin:0 0 8px"><input type="checkbox" class="gm" value="${esc(h)}">${blob(h,30)}<b>${esc(h)}</b></label>`).join('')}
+    <button class="primary" onclick="createGroup()">Create group</button><div class="err" id="gerr"></div>`
+    :'<div class="empty">Add some friends first, then you can make a group with them.</div>';
+  $('sheet').classList.add('on');
+}
+async function createGroup(){
+  const t=$('gt').value.trim(),hs=[...document.querySelectorAll('.gm:checked')].map(x=>x.value);
+  if(!t)return $('gerr').textContent='Give the group a name.';
+  if(!hs.length)return $('gerr').textContent='Pick at least one friend.';
+  const {data,error}=await sb.rpc('aces_create_group',{p_title:t,p_handles:hs});
+  if(error)return $('gerr').textContent=error.message;
+  closeSheet();convMeta[data]={isGroup:true,title:t,others:hs.join(', ')};openChat(data);
+}
+
+/* ---------- chat ---------- */
+function openChat(id){conv=id;lastChatHtml='';go('chat')}
+async function scrChat(){
+  const m=convMeta[conv]||{title:'Chat',isGroup:false};
+  hdr(m.title,{back:'msgs',right:m.isGroup?'<button class="tiny ghost" onclick="groupInfo()">Members</button>':''});
+  $('ft').classList.remove('hide');
+  $('ft').innerHTML=`<div id="pf" class="pending-file hide"></div>
+    <button class="attach" onclick="pickFile()" aria-label="Attach photo or file">${ICON.clip}</button>
+    <input id="mg" placeholder="Message…"><button class="tiny" id="sendbtn" onclick="sendMsg()">Send</button>`;
+  $('mg').addEventListener('keydown',e=>{if(e.key==='Enter')sendMsg()});
+  if(m.isGroup){
+    const {data}=await sb.rpc('aces_conv_members',{p_conv:conv});
+    convMembers[conv]={};(data||[]).forEach(u=>convMembers[conv][u.user_id]=u.handle);
+  }
+  await paintMsgs();
+  if(chan)sb.removeChannel(chan);
+  chan=sb.channel('conv'+conv).on('postgres_changes',
+    {event:'*',schema:'public',table:'aces_messages',filter:'conversation_id=eq.'+conv},()=>paintMsgs()).subscribe();
+}
+function pickFile(){
+  const fp=$('filepick');fp.value='';
+  fp.onchange=()=>{const f=fp.files[0];if(!f)return;
+    if(f.size>MAXFILE)return toast('That file is over 10 MB.');
+    pendingFile=f;const pf=$('pf');pf.classList.remove('hide');
+    pf.innerHTML=`${f.type.startsWith('image/')?'📷':'📎'} <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(f.name)}</span><button onclick="clearFile()">Remove</button>`};
+  fp.click();
+}
+function clearFile(){pendingFile=null;const pf=$('pf');if(pf){pf.classList.add('hide');pf.innerHTML=''}}
+let painting=0;
+async function paintMsgs(){
+  const my=++painting;
+  const [{data},{data:hid},{data:ch}]=await Promise.all([
+    sb.from('aces_messages').select('*').eq('conversation_id',conv).order('created_at'),
+    sb.from('aces_message_hidden').select('message_id'),
+    sb.from('aces_conversation_hidden').select('hidden_at').eq('conversation_id',conv).maybeSingle()]);
+  if(screen!=='chat'||my!==painting)return;
+  const hidden=new Set((hid||[]).map(h=>h.message_id)),since=ch&&ch.hidden_at?new Date(ch.hidden_at):null;
+  const list=(data||[]).filter(x=>!hidden.has(x.id)&&(!since||new Date(x.created_at)>since));
+  msgCache={};list.forEach(x=>msgCache[x.id]=x);
+  const now=Date.now();
+  const want=[];
+  list.filter(x=>x.attachment_path&&!x.unsent_at).forEach(x=>{
+    want.push(x.attachment_path);
+    if((x.attachment_type||'').startsWith('image/'))want.push(x.attachment_path+THUMB);
+  });
+  const need=want.filter(p=>!localPreview[p]&&!urlMiss[p]&&(!urlCache[p]||urlCache[p].exp<now+600000));
+  if(need.length){
+    const {data:su}=await sb.storage.from('chat').createSignedUrls(need,86400);
+    (su||[]).forEach(s=>{if(s.signedUrl)urlCache[s.path]={u:s.signedUrl,exp:now+86400000};
+      else if(s.path&&s.path.endsWith(THUMB))urlMiss[s.path]=1});
+    saveUrlCache();
+    if(screen!=='chat'||my!==painting)return;
+  }
+  const urls={};for(const p in urlCache)urls[p]=urlCache[p].u;
+  for(const p in localPreview)urls[p]=localPreview[p];
+  const grp=(convMeta[conv]||{}).isGroup,mem=convMembers[conv]||{};
+  let html=list.map(x=>{
+    const mine=x.sender_id===me.id;
+    if(x.unsent_at)return `<div class="mrow ${mine?'mine':'theirs'}"><div class="bub unsent">${mine?'You unsent a message':'Message unsent'}</div>
+      <button class="mmenu" onclick="msgMenu(${x.id})" aria-label="Message options">⋯</button></div>`;
+    let att='';const isPhoto=!!x.attachment_path&&(x.attachment_type||'').startsWith('image/');
+    if(x.attachment_path){const u=urls[x.attachment_path],th=urls[x.attachment_path+THUMB]||u;
+      att=(x.attachment_type||'').startsWith('image/')
+        ?(th?`<a href="${esc(u||th)}" target="_blank" rel="noopener"><img src="${esc(th)}" alt="${esc(x.attachment_name||'Photo')}" decoding="async" onload="imgLoaded()"></a>`:'📷 Photo')
+        :`<a class="file" href="${esc(u||'#')}" target="_blank" rel="noopener">📎 ${esc(x.attachment_name||'File')}</a>`}
+    const from=grp&&!mine?`<span class="from">${esc(mem[x.sender_id]||'member')}</span>`:'';
+    return `<div class="mrow ${mine?'mine':'theirs'}"><div class="bub${isPhoto&&!x.body?' photo':''}">${from}${att}${x.body?esc(x.body):''}</div>
+      <button class="mmenu" onclick="msgMenu(${x.id})" aria-label="Message options">⋯</button></div>`}).join('')
+    ||(sendingHtml?'':'<div class="empty">Say hello.</div>');
+  html+=sendingHtml;
+  if(html===lastChatHtml)return;
+  lastChatHtml=html;
+  $('view').innerHTML=html;
+  window.scrollTo(0,document.body.scrollHeight);
+}
+const THUMB='.thumb.jpg';
+let urlCache={},urlMiss={},localPreview={},lastChatHtml='',sendingHtml='';
+try{const c=JSON.parse(localStorage.getItem('circuit-urls')||'{}'),t=Date.now();
+  for(const k in c)if(c[k]&&c[k].exp>t)urlCache[k]=c[k]}catch(e){}
+function saveUrlCache(){try{localStorage.setItem('circuit-urls',JSON.stringify(urlCache))}catch(e){}}
+function imgLoaded(){
+  const nearBottom=window.innerHeight+window.scrollY>=document.body.scrollHeight-400;
+  if(nearBottom)window.scrollTo(0,document.body.scrollHeight);
+}
+async function shrinkImage(f,max,q,force){
+  if(!f.type.startsWith('image/')||f.type==='image/gif')return force?null:f;
+  try{
+    const bmp=await createImageBitmap(f);
+    const s=Math.min(1,max/Math.max(bmp.width,bmp.height));
+    const c=document.createElement('canvas');c.width=Math.round(bmp.width*s);c.height=Math.round(bmp.height*s);
+    c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+    const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',q));
+    if(!blob||(!force&&blob.size>=f.size))return force?blob:f;
+    return new File([blob],f.name.replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'});
+  }catch(e){return force?null:f}
+}
+async function sendMsg(){
+  const i=$('mg'),b=i.value.trim();let f=pendingFile;
+  if(!b&&!f)return;
+  const btn=$('sendbtn');btn.disabled=true;
+  const row={conversation_id:conv,sender_id:me.id,body:b||null};
+  if(f){
+    const isImg=f.type.startsWith('image/')&&f.type!=='image/gif';
+    let thumb=null,preview='';
+    if(isImg){
+      preview=URL.createObjectURL(f);
+      sendingHtml=`<div class="mrow mine"><div class="bub${b?'':' photo'}"><img src="${preview}" alt="" onload="imgLoaded()">${b?esc(b):''}<span style="display:block;font-size:12px;opacity:.8">Sending…</span></div></div>`;
+      lastChatHtml='';paintMsgs();i.value='';clearFile();
+      [f,thumb]=await Promise.all([shrinkImage(f,1280,0.8),shrinkImage(f,480,0.7,true)]);
+    }
+    const safe=f.name.replace(/[^\w.\-]+/g,'_').slice(-80)||'file';
+    const path=`${conv}/${crypto.randomUUID()}-${safe}`;
+    if(!isImg)btn.textContent='Uploading…';
+    const opts={contentType:f.type||'application/octet-stream',cacheControl:'31536000'};
+    const ups=[sb.storage.from('chat').upload(path,f,opts)];
+    if(thumb)ups.push(sb.storage.from('chat').upload(path+THUMB,thumb,{contentType:'image/jpeg',cacheControl:'31536000'}));
+    const res=await Promise.all(ups);
+    btn.textContent='Send';
+    if(res[0].error){btn.disabled=false;sendingHtml='';lastChatHtml='';paintMsgs();return toast(res[0].error.message)}
+    if(preview){localPreview[path]=preview;localPreview[path+THUMB]=preview}
+    Object.assign(row,{attachment_path:path,attachment_name:f.name.slice(0,120),attachment_type:f.type||'application/octet-stream'});
+  }
+  const {error}=await sb.from('aces_messages').insert(row);
+  btn.disabled=false;sendingHtml='';
+  if(error){lastChatHtml='';paintMsgs();return toast(error.message)}
+  i.value='';clearFile();paintMsgs();
+}
+function msgMenu(id){
+  const x=msgCache[id];if(!x)return;
+  const mine=x.sender_id===me.id;
+  $('shtitle').textContent='Message';
+  $('shbody').innerHTML=
+    (mine&&!x.unsent_at?`<button class="rowcard" style="width:100%;text-align:left" onclick="unsend(${id})"><b style="flex:1">Unsend for everyone</b><span>›</span></button>`:'')+
+    `<button class="rowcard" style="width:100%;text-align:left" onclick="hideMsg(${id})"><b style="flex:1">Delete for me</b><span>›</span></button>`;
+  $('sheet').classList.add('on');
+}
+async function unsend(id){
+  const x=msgCache[id];
+  if(x&&x.attachment_path)await sb.storage.from('chat').remove([x.attachment_path,x.attachment_path+THUMB]);
+  const {error}=await sb.rpc('aces_unsend',{p_msg:id});
+  closeSheet();if(error)return toast(error.message);
+  toast('Message unsent');paintMsgs();
+}
+async function hideMsg(id){
+  const {error}=await sb.from('aces_message_hidden').insert({user_id:me.id,message_id:id});
+  closeSheet();if(error)return toast(error.message);
+  toast('Deleted for you');paintMsgs();
+}
+async function groupInfo(){
+  const {data}=await sb.rpc('aces_conv_members',{p_conv:conv});
+  const fr=await friendHandles(),inG=new Set((data||[]).map(u=>u.handle));
+  const add=fr.filter(h=>!inG.has(h));
+  $('shtitle').textContent=(convMeta[conv]||{}).title||'Group';
+  $('shbody').innerHTML=`<div class="sec" style="margin-top:0">${(data||[]).length} members</div>
+    ${(data||[]).map(u=>`<div class="rowcard">${blob(u.handle,32)}<b style="flex:1">${esc(u.handle)}${u.user_id===me.id?' (you)':''}</b></div>`).join('')}
+    ${add.length?`<div class="sec">Add a friend</div>`+add.map(h=>`<div class="rowcard">${blob(h,32)}<b style="flex:1">${esc(h)}</b>
+      <button class="tiny ok" onclick="groupAdd('${esc(h)}')">Add</button></div>`).join(''):''}
+    <button class="secondary" onclick="leaveGroup()">Leave group</button>`;
+  $('sheet').classList.add('on');
+}
+async function groupAdd(h){
+  const {error}=await sb.rpc('aces_group_add',{p_conv:conv,p_handle:h});
+  if(error)return toast(error.message);
+  toast(h+' added');
+  const {data}=await sb.rpc('aces_conv_members',{p_conv:conv});
+  convMembers[conv]={};(data||[]).forEach(u=>convMembers[conv][u.user_id]=u.handle);
+  groupInfo();
+}
+function leaveGroup(id){
+  const c=id||conv;
+  $('shtitle').textContent='Leave this group?';
+  $('shbody').innerHTML=`<p style="color:var(--body);line-height:1.5">You'll stop seeing its messages. A member can add you back.</p>
+    <button class="primary" onclick="doLeave(${c})">Leave group</button>`;
+  $('sheet').classList.add('on');
+}
+async function doLeave(c){
+  const {error}=await sb.rpc('aces_leave_group',{p_conv:c});
+  closeSheet();if(error)return toast(error.message);
+  viewCache.msgs=null;toast('You left the group');go('msgs');
+}
+
+function scrMe(){
+  hdr('Profile');
+  $('view').innerHTML=`
+    <div class="card" style="text-align:center;padding:28px 20px">
+      <div style="display:flex;justify-content:center">${blob(me.handle,110)}</div>
+      <h2 class="fd" style="font-size:30px;color:var(--brand);margin-top:14px">${esc(me.handle)}</h2>
+      <p style="color:var(--body);font-size:14px;line-height:1.5;margin-top:10px">
+        Your handle is random and permanent. Only ACES officers can see who you really are.</p>
+    </div>
+    <button class="rowcard" style="width:100%;text-align:left" onclick="feed='saved';go('home')">
+      <b style="flex:1">Saved posts</b><span style="color:var(--muted)">${bookmarks.size} ›</span></button>
+    ${me.role==='admin'?`<a class="rowcard" href="/admin" style="width:100%;text-decoration:none;color:inherit">
+      <b style="flex:1">Admin dashboard</b><span class="pill">Officer</span></a>`:''}
+    <div id="installrow"></div>
+    <button class="secondary" onclick="logout()">Log out</button>`;
+  if(deferredPrompt)showInstall();
+}
+
+let deferredPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;if(screen==='me')showInstall()});
+function showInstall(){
+  const r=$('installrow');if(!r)return;
+  r.innerHTML=`<button class="rowcard" style="width:100%;text-align:left" onclick="doInstall()">
+    <b style="flex:1">Install Circuit on this device</b><span style="color:var(--brand)">›</span></button>`;
+}
+async function doInstall(){
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();await deferredPrompt.userChoice;
+  deferredPrompt=null;$('installrow').innerHTML='';
+}
+function netState(){$('offline').classList.toggle('on',!navigator.onLine)}
+window.addEventListener('online',netState);window.addEventListener('offline',netState);netState();
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+$('sheet').addEventListener('click',e=>{if(e.target.id==='sheet')closeSheet()});
+boot();
+</script>
+</body>
+</html>
