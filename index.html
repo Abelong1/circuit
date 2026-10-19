@@ -196,6 +196,11 @@ header h2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
 .av{position:relative;flex:none;display:inline-flex}
 .ubadge{position:absolute;top:-5px;right:-7px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#E5322D;color:#fff;font:700 11px/18px system-ui,sans-serif;text-align:center;border:2px solid var(--card);box-sizing:content-box}
+.nbadge{position:absolute;top:-2px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#E5322D;color:#fff;font:700 11px/18px system-ui,sans-serif;font-style:normal;text-align:center;border:2px solid var(--card);box-sizing:content-box}
+@media (min-width:900px){.nbadge{top:14px;right:auto;left:30px}}
+.ntf{width:100%;text-align:left;line-height:1.4}.ntf.new{box-shadow:inset 4px 0 0 var(--brand)}
+.ntf .tx{flex:1;min-width:0;font-size:15px;color:var(--body)}.ntf .tx b{color:var(--ink)}
+.ntf .tm{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .unread .pv{color:var(--ink)!important;font-weight:700}
 </style>
 </head>
@@ -259,6 +264,7 @@ const ICON={
  home:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>',
  friends:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3.2-5.5 7-5.5s7 2 7 5.5"/><path d="M17 8.5a3 3 0 0 1 0 5M19 20c0-2.5-1-4-2.5-5"/></svg>',
  msgs:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+ notifs:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>',
  me:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>',
  groupadd:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5"/><path d="M19 8v6M16 11h6"/></svg>',
  trash:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
@@ -270,7 +276,7 @@ let me=null,screen='home',feed='all',posts=[],handles={},openPost=null,
     conv=null,chan=null,bookmarks=new Set(),expanded=new Set(),pending=0,
     convMeta={},msgCache={},convMembers={},pendingFile=null;
 const FEEDS=[['all','All'],['moments','Moments'],['help','Help'],['hiring','Hiring'],['saved','Saved']];
-const NAV=[['home','Home'],['friends','Friends'],['msgs','Messages'],['me','Profile']];
+const NAV=[['home','Home'],['friends','Friends'],['msgs','Messages'],['notifs','Alerts'],['me','Profile']];
 const FEEDNAME={moments:'Moments',help:'Help',hiring:'Hiring'};
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),2600)}
@@ -302,7 +308,7 @@ async function boot(onerr){
   const {data,error}=await sb.rpc('aces_ensure_profile');
   if(error){await sb.auth.signOut();$('auth').style.display='grid';$('shell').classList.remove('on');
     (onerr||(m=>$('li-err').textContent=m))(error.message);return}
-  me=data;watchInbox();
+  me=data;watchInbox();watchNotifs();
   $('auth').style.display='none';$('shell').classList.add('on');
   const {data:bm}=await sb.from('aces_bookmarks').select('post_id');
   bookmarks=new Set((bm||[]).map(b=>b.post_id));
@@ -318,7 +324,7 @@ async function refreshPending(){
 function paintNav(){
   const brand=`<div class="brand">${blob('circuit',34,'#CF6A4F')}Circuit</div>`;
   $('rail').innerHTML=brand+NAV.map(([k,l])=>
-    `<button class="${k===screen?'on':''}" onclick="go('${k}')" aria-label="${l}">${ICON[k]}<span>${l}</span>${k==='friends'&&pending?'<i class="dot"></i>':''}</button>`).join('');
+    `<button class="${k===screen?'on':''}" onclick="go('${k}')" aria-label="${l}">${ICON[k]}<span>${l}</span>${k==='friends'&&pending?'<i class="dot"></i>':''}${k==='notifs'&&notifUnread?`<i class="nbadge">${notifUnread>99?'99+':notifUnread}</i>`:''}</button>`).join('');
 }
 function paintAside(){
   if(!me)return;
@@ -340,7 +346,7 @@ function go(s){
   $('ft').classList.add('hide');$('ft').innerHTML='';pendingFile=null;
   $('chipbar').innerHTML='';$('chipbar').className='';$('view').innerHTML='';
   if(s!=='chat'&&chan){sb.removeChannel(chan);chan=null}
-  ({home:scrHome,post:scrPost,friends:scrFriends,msgs:scrMsgs,chat:scrChat,me:scrMe})[s]();
+  ({home:scrHome,post:scrPost,friends:scrFriends,msgs:scrMsgs,chat:scrChat,notifs:scrNotifs,me:scrMe})[s]();
   window.scrollTo(0,0);
 }
 function hdr(title,opts={}){
@@ -616,6 +622,74 @@ async function decline(id,msg){
   toast(msg);scrFriends();
 }
 
+/* ---------- notifications ---------- */
+let notifUnread=0,notifChan=null,notifT=null,notifRows=[];
+async function refreshNotifCount(){
+  const {count,error}=await sb.from('aces_notifications').select('id',{count:'exact',head:true}).is('read_at',null);
+  if(error)return;
+  const n=count||0;if(n!==notifUnread){notifUnread=n;paintNav()}
+}
+function watchNotifs(){
+  refreshNotifCount();
+  if(notifChan)return;
+  notifChan=sb.channel('notifs').on('postgres_changes',{event:'*',schema:'public',table:'aces_notifications',filter:'user_id=eq.'+me.id},()=>{
+    clearTimeout(notifT);notifT=setTimeout(()=>{refreshNotifCount();if(screen==='notifs')scrNotifs(true)},300);
+  }).subscribe();
+}
+function notifText(n,h){
+  const who=`<b>${esc(h)}</b>`;
+  return {message:n.count>1?`${who} sent you ${n.count} messages`:`${who} sent you a message`,
+    friend_request:`${who} sent you a friend request`,friend_accept:`${who} accepted your friend request`,
+    comment:`${who} commented on your post`,like:`${who} liked your post`,mention:`${who} mentioned you`}[n.kind]||`${who} did something`;
+}
+async function scrNotifs(quiet){
+  hdr('Alerts',{right:'<button class="tiny ghost" onclick="clearNotifs()">Clear all</button>'});
+  if(!quiet)$('view').innerHTML=viewCache.notifs||'<div class="empty">Loading…</div>';
+  const {data,error}=await sb.from('aces_notifications').select('*').order('created_at',{ascending:false}).limit(60);
+  if(screen!=='notifs')return;
+  if(error)return $('view').innerHTML=`<div class="empty">${esc(error.message)}</div>`;
+  notifRows=data||[];
+  const ids=[...new Set(notifRows.map(n=>n.actor_id).filter(i=>i&&!handles[i]))];
+  if(ids.length){const {data:hs}=await sb.from('aces_handles').select('id,handle').in('id',ids);(hs||[]).forEach(h=>handles[h.id]=h.handle)}
+  if(screen!=='notifs')return;
+  const vh=notifRows.map(n=>{const h=handles[n.actor_id]||'member';
+    return `<button class="rowcard ntf${n.read_at?'':' new'}" onclick="openNotif(${n.id})">${blob(h,40)}
+      <span class="tx">${notifText(n,h)}<span class="tm">${ago(n.created_at)}</span></span></button>`}).join('')
+    ||'<div class="empty">No alerts yet.<br>Messages, friend requests, comments and likes show up here.</div>';
+  viewCache.notifs=vh;$('view').innerHTML=vh;
+  const unread=notifRows.filter(n=>!n.read_at).map(n=>n.id);
+  if(unread.length){notifUnread=0;paintNav();
+    await sb.from('aces_notifications').update({read_at:new Date().toISOString()}).in('id',unread);
+    notifRows.forEach(n=>{if(!n.read_at)n.read_at='seen'})}
+}
+async function openNotif(id){
+  const n=notifRows.find(x=>x.id===id);if(!n)return;
+  if(n.kind==='message'&&n.conversation_id){
+    if(!convMeta[n.conversation_id]){const {data}=await sb.rpc('aces_my_conversations');
+      (data||[]).forEach(c=>convMeta[c.conversation_id]={isGroup:c.is_group,title:c.is_group?(c.title||'Group'):(c.other_handle||'Chat'),others:c.other_handle||''})}
+    return openChat(n.conversation_id);
+  }
+  if(n.kind==='friend_request'||n.kind==='friend_accept')return go('friends');
+  if(n.post_id){
+    if(!posts.find(p=>p.id===n.post_id)){
+      const {data:p}=await sb.from('aces_posts').select('*').eq('id',n.post_id).maybeSingle();
+      if(!p)return toast('That post was deleted.');
+      posts.push(p);
+      if(!handles[p.author_id]){const {data:h}=await sb.from('aces_handles').select('id,handle').eq('id',p.author_id).maybeSingle();if(h)handles[h.id]=h.handle}
+      await signPostPhotos([p]);
+    }
+    return openDetail(n.post_id);
+  }
+}
+async function clearNotifs(){
+  const {error}=await sb.from('aces_notifications').delete().eq('user_id',me.id);
+  if(error)return toast(error.message);
+  notifRows=[];viewCache.notifs=null;notifUnread=0;paintNav();scrNotifs();toast('Alerts cleared');
+}
+function clearMsgNotif(convId){
+  sb.from('aces_notifications').update({read_at:new Date().toISOString()}).eq('kind','message').eq('conversation_id',convId).is('read_at',null).then(()=>refreshNotifCount());
+}
+
 /* ---------- messages list ---------- */
 /* unread counts: compares each chat's messages with my row in aces_conversation_reads (written by aces_mark_read in logo.js) */
 let inboxChan=null,inboxT=null;
@@ -701,7 +775,7 @@ async function createGroup(){
 }
 
 /* ---------- chat ---------- */
-function openChat(id){conv=id;lastChatHtml='';go('chat')}
+function openChat(id){conv=id;lastChatHtml='';clearMsgNotif(id);go('chat')}
 async function scrChat(){
   const m=convMeta[conv]||{title:'Chat',isGroup:false};
   hdr(m.title,{back:'msgs',right:m.isGroup?'<button class="tiny ghost" onclick="groupInfo()">Members</button>':''});
