@@ -58,6 +58,7 @@ textarea{resize:none;line-height:1.45}
 .terms{display:flex;gap:12px;align-items:flex-start;margin-top:18px;font-size:13px;color:var(--body);line-height:1.5}
 .terms input{width:22px;height:22px;flex:none;margin-top:2px;accent-color:var(--brand)}
 .err{color:var(--warn);font-weight:700;font-size:14px;margin-top:12px;min-height:1px}
+.fpnote{color:var(--body);font-size:14px;line-height:1.5;margin:4px 0 12px}
 
 #shell{display:none;min-height:100dvh;background:var(--paper)}
 #shell.on{display:block}
@@ -223,7 +224,25 @@ header h2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       <input id="li-pw" type="password" autocomplete="current-password" placeholder="Your password">
       <button class="primary" id="li-btn" onclick="doLogin()">Log in</button>
       <div class="err" id="li-err"></div>
+      <button class="linkbtn" onclick="swap('forgot')">Forgot password?</button>
       <button class="linkbtn" onclick="swap('signup')">New here? Create an account</button>
+    </div>
+    <div id="f-forgot" class="hide">
+      <label for="fp-em">Your Circuit email</label>
+      <input id="fp-em" type="email" autocomplete="email" placeholder="you@email.com">
+      <button class="primary" id="fp-btn" onclick="doForgot()">Request reset</button>
+      <div class="err" id="fp-err"></div>
+      <button class="linkbtn" onclick="swap('login')">Back to log in</button>
+    </div>
+    <div id="f-newpw" class="hide">
+      <p class="fpnote">An ACES officer reset your password. Choose a new one to continue.</p>
+      <label for="np-pw">New password</label>
+      <input id="np-pw" type="password" autocomplete="new-password" placeholder="At least 8 characters">
+      <label for="np-pw2">Confirm new password</label>
+      <input id="np-pw2" type="password" autocomplete="new-password" placeholder="Type it again">
+      <button class="primary" id="np-btn" onclick="doNewPw()">Save password</button>
+      <div class="err" id="np-err"></div>
+      <button class="linkbtn" onclick="logout()">Log out</button>
     </div>
     <div id="f-signup" class="hide">
       <label for="su-em">ACES email</label>
@@ -288,7 +307,8 @@ const NAV=[['home','Home'],['friends','Friends'],['msgs','Messages'],['notifs','
 const FEEDNAME={moments:'Moments',help:'Help',hiring:'Hiring'};
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),2600)}
-function swap(w){$('f-login').classList.toggle('hide',w!=='login');$('f-signup').classList.toggle('hide',w!=='signup')}
+function swap(w){['login','signup','forgot','newpw'].forEach(k=>$('f-'+k).classList.toggle('hide',w!==k));
+  if(w==='forgot'&&!$('fp-em').value)$('fp-em').value=$('li-em').value.trim()}
 
 function busy(id,on,label){const b=$(id);if(!b)return;if(on){b._t=b._t||b.textContent;b.disabled=true;b.textContent=label}else{b.disabled=false;b.textContent=b._t||b.textContent}}
 async function doSignup(){
@@ -318,6 +338,27 @@ async function _doLogin(){
   if(error)return e.textContent=error.message;
   boot(m=>e.textContent=m);
 }
+async function doForgot(){
+  const e=$('fp-err'),em=$('fp-em').value.trim();e.textContent='';
+  if(!/^\S+@\S+\.\S+$/.test(em))return e.textContent='Enter the email you signed up with.';
+  if($('fp-btn').disabled)return;busy('fp-btn',true,'Sending…');
+  try{const {error}=await sb.rpc('aces_request_pw_reset',{p_email:em});
+    if(error)return e.textContent='Could not send the request. Try again later.';
+    $('f-forgot').querySelector('.fpnote')?.remove();
+    $('fp-btn').insertAdjacentHTML('beforebegin','<p class="fpnote">Request sent. If that email has an account, an ACES officer will give you a temporary password in person.</p>');
+  }finally{busy('fp-btn',false)}
+}
+async function doNewPw(){
+  const e=$('np-err'),a=$('np-pw').value,b=$('np-pw2').value;e.textContent='';
+  if(a.length<8)return e.textContent='Use at least 8 characters.';
+  if(a!==b)return e.textContent='Passwords don\'t match.';
+  if($('np-btn').disabled)return;busy('np-btn',true,'Saving…');
+  try{const {error}=await sb.auth.updateUser({password:a});
+    if(error)return e.textContent=error.message;
+    await sb.rpc('aces_pw_changed');$('np-pw').value=$('np-pw2').value='';
+    swap('login');boot();
+  }finally{busy('np-btn',false)}
+}
 async function logout(){if(chan)sb.removeChannel(chan);await sb.auth.signOut();location.reload()}
 
 async function boot(onerr){
@@ -327,6 +368,7 @@ async function boot(onerr){
   const {data,error}=await sb.rpc('aces_ensure_profile');
   if(error){await sb.auth.signOut();$('auth').style.display='grid';$('shell').classList.remove('on');
     (onerr||(m=>$('li-err').textContent=m))(error.message);return}
+  if(data.must_change_pw){$('auth').style.display='grid';$('shell').classList.remove('on');swap('newpw');return}
   me=data;watchInbox();watchNotifs();
   $('auth').style.display='none';$('shell').classList.add('on');
   const {data:bm}=await sb.from('aces_bookmarks').select('post_id');

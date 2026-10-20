@@ -98,11 +98,11 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const when=t=>t?new Date(t).toLocaleString('en-PH',{dateStyle:'medium',timeStyle:'short'}):'never';
 
 let me=null,tab='reports';
-const TABS=[['reports','Reports'],['members','Members'],['whitelist','Whitelist'],['logins','Login monitoring'],['audit','Audit log']];
+const TABS=[['reports','Reports'],['members','Members'],['whitelist','Whitelist'],['resets','Password resets'],['logins','Login monitoring'],['audit','Audit log']];
 
 function fail(e){$('view').innerHTML=`<div class="card err">${esc(e.message||e)}</div>`}
 function paintTabs(){
-  $('tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab ${k===tab?'on':''}" onclick="tab='${k}';render()">${l}${k==='reports'&&window._open?`<span class="n">${window._open}</span>`:''}</button>`).join('');
+  $('tabs').innerHTML=TABS.map(([k,l])=>`<button class="tab ${k===tab?'on':''}" onclick="tab='${k}';render()">${l}${k==='reports'&&window._open?`<span class="n">${window._open}</span>`:''}${k==='resets'&&window._resets?`<span class="n">${window._resets}</span>`:''}</button>`).join('');
 }
 async function boot(){
   $('lg').innerHTML=blob('circuit',40,'#CF6A4F');$('lg2').innerHTML=blob('circuit',44,'#CF6A4F');
@@ -111,7 +111,7 @@ async function boot(){
   const {data,error}=await sb.rpc('aces_ensure_profile');
   if(error){$('login').style.display='block';$('lerr').textContent=error.message;await sb.auth.signOut();return}
   if(data.role!=='admin'){$('login').style.display='block';$('lerr').textContent='This account is not an ACES officer.';await sb.auth.signOut();return}
-  me=data;$('login').style.display='none';$('app').style.display='block';
+  me=data;countResets();$('login').style.display='none';$('app').style.display='block';
   $('who').textContent='Signed in as '+me.handle;
   render();
 }
@@ -126,7 +126,7 @@ async function logout(){await sb.auth.signOut();location.reload()}
 function render(){
   paintTabs();
   $('view').innerHTML='<div class="card empty">Loading…</div>';
-  ({reports,members,whitelist,logins,audit})[tab]().catch(fail);
+  ({reports,members,whitelist,resets,logins,audit})[tab]().catch(fail);
 }
 async function logAction(action,type,id,notes){
   await sb.from('aces_audit_log').insert({admin_id:me.id,action,target_type:type,target_id:id,notes});
@@ -198,6 +198,44 @@ async function setStatus(uid,status,rid){
   const {error}=await sb.rpc('aces_admin_set_status',{p_user_id:uid,p_status:status,p_notes:note});
   if(error)return alert(error.message);
   if(rid)await resolve(rid,'resolved',status);else render();
+}
+
+async function countResets(){
+  const {count}=await sb.from('aces_pw_resets').select('id',{count:'exact',head:true}).eq('status','pending');
+  window._resets=count||0;paintTabs();
+}
+function tempPw(){const a='abcdefghjkmnpqrstuvwxyz23456789',r=crypto.getRandomValues(new Uint32Array(8));
+  let s='';r.forEach((v,i)=>{s+=a[v%a.length];if(i===3)s+='-'});return 'circuit-'+s}
+async function resets(){
+  const {data,error}=await sb.from('aces_pw_resets').select('id,user_id,status,created_at,handled_at').order('created_at',{ascending:false}).limit(100);
+  if(error)throw error;
+  const ids=[...new Set(data.map(r=>r.user_id))],U={};
+  if(ids.length){const {data:us}=await sb.from('aces_users').select('id,handle,real_name,email,status').in('id',ids);(us||[]).forEach(u=>U[u.id]=u)}
+  window._resets=data.filter(r=>r.status==='pending').length;paintTabs();
+  $('view').innerHTML=`<div class="card">
+    <p class="meta" style="margin-bottom:12px">Members who tapped "Forgot password". Check who they are in person, then set a temporary password and hand it to them. They must choose a new one on next login.</p>
+    <div id="tpw"></div>
+    <table><tr><th>Requested</th><th>Member</th><th>Status</th><th></th></tr>
+    ${data.map(r=>{const u=U[r.user_id]||{};return `<tr><td class="meta">${when(r.created_at)}</td>
+      <td><b>${esc(u.handle)}</b> <span class="real">${esc(u.real_name)}</span><div class="meta">${esc(u.email)}</div></td>
+      <td><span class="pill ${r.status==='pending'?'open':r.status==='done'?'resolved':'dismissed'}">${r.status}</span></td>
+      <td>${r.status==='pending'?`<button class="btn brand" onclick="doReset(${r.id},'${esc(u.handle)}')">Set temp password</button><button class="btn" onclick="dismissReset(${r.id})">Dismiss</button>`:`<span class="meta">${when(r.handled_at)}</span>`}</td></tr>`}).join('')||'<tr><td colspan="4" class="empty">No requests.</td></tr>'}
+    </table></div>`;
+}
+async function doReset(id,handle){
+  if(!confirm('Set a temporary password for '+handle+'? They will be signed out everywhere.'))return;
+  const pw=tempPw();
+  const {error}=await sb.rpc('aces_admin_reset_pw',{p_request_id:id,p_new_pw:pw});
+  if(error)return alert(error.message);
+  await resets();
+  $('tpw').innerHTML=`<div class="quote"><b>Temporary password for ${esc(handle)}:</b>\n<span style="font-size:20px;font-weight:700;letter-spacing:.04em">${pw}</span>\n<span class="meta">Shown only once. Give it to them in person.</span></div>
+    <button class="btn" onclick="navigator.clipboard.writeText('${pw}').then(()=>this.textContent='Copied')">Copy</button>`;
+}
+async function dismissReset(id){
+  if(!confirm('Dismiss this request?'))return;
+  const {error}=await sb.rpc('aces_admin_dismiss_pw_reset',{p_request_id:id});
+  if(error)return alert(error.message);
+  resets();
 }
 
 async function members(){
