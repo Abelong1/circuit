@@ -71,11 +71,11 @@ header h2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 #rail{position:fixed;left:12px;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));height:64px;
   background:var(--card);border:2px solid var(--line);border-radius:32px;display:flex;align-items:center;
-  justify-content:space-around;padding:0 6px;z-index:20;box-shadow:0 6px 20px rgba(90,46,37,.10);max-width:560px;margin:0 auto}
+  justify-content:space-around;padding:0 6px;z-index:20;display:grid;grid-template-columns:repeat(5,1fr);justify-items:center;box-shadow:0 6px 20px rgba(90,46,37,.10);max-width:560px;margin:0 auto}
 #rail button{height:44px;min-width:44px;border-radius:22px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 12px;color:var(--muted);position:relative}
-#rail button.on{background:var(--brand);color:#fff;padding:0 16px}
+#rail button.on{background:var(--brand);color:#fff}
+#rail button{width:56px;padding:0}
 #rail button span{font-size:13px;font-weight:700;display:none}
-#rail button.on span{display:inline}
 .dot{position:absolute;top:6px;right:8px;width:9px;height:9px;border-radius:5px;background:var(--brand);border:2px solid var(--card)}
 
 .card{background:var(--card);border-radius:var(--r);padding:16px;margin-bottom:12px}
@@ -164,9 +164,9 @@ header h2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #shell.on{display:grid;grid-template-columns:var(--rail) 1fr}
   #rail{position:fixed;left:0;top:0;bottom:0;right:auto;width:var(--rail);max-width:none;height:100dvh;margin:0;
     border-radius:0;border:0;border-right:2px solid var(--line);flex-direction:column;justify-content:flex-start;
-    align-items:stretch;padding:24px 16px;gap:6px;box-shadow:none;background:var(--paper)}
+    align-items:stretch;padding:24px 16px;gap:6px;box-shadow:none;background:var(--paper);display:flex}
   #rail .brand{display:flex;align-items:center;gap:10px;padding:4px 10px 22px;font-family:Fredoka,sans-serif;font-weight:700;font-size:26px;color:var(--brand)}
-  #rail button{height:52px;border-radius:26px;justify-content:flex-start;padding:0 18px;gap:14px}
+  #rail button{height:52px;width:auto;border-radius:26px;justify-content:flex-start;padding:0 18px;gap:14px}
   #rail button span{display:inline;font-size:16px}
   #rail button.on{padding:0 18px}
   .dot{top:14px;right:auto;left:34px}
