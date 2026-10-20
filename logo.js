@@ -216,3 +216,31 @@ window.sendComment=async function sendComment(){
 };
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&screen==='chat')paintMsgs('full')});
 });
+
+/* Show/hide eye on every password field (login, sign-up, admin). */
+(function(){
+  const EYE='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const EYE_OFF='<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.5 10.5 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6C3.9 8.4 2 12 2 12s3.5 7 10 7c1.8 0 3.4-.5 4.8-1.3"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+  function add(){
+    if(!document.getElementById('pweye-css')){
+      const st=document.createElement('style');st.id='pweye-css';
+      st.textContent='.pwwrap{position:relative;width:100%;display:block}.pwwrap>input{width:100%;padding-right:52px!important}'+
+        '.pweye{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:44px;height:44px;display:flex;align-items:center;justify-content:center;'+
+        'background:none;border:0;border-radius:22px;color:var(--muted,#8a7068);cursor:pointer;padding:0;margin:0}.pweye:active{opacity:.6}';
+      document.head.appendChild(st);
+    }
+    document.querySelectorAll('input[type=password]:not([data-eye])').forEach(inp=>{
+      inp.dataset.eye='1';
+      const w=document.createElement('span');w.className='pwwrap';
+      if(inp.style.marginBottom||getComputedStyle(inp).marginBottom!=='0px'){w.style.marginBottom=getComputedStyle(inp).marginBottom;inp.style.marginBottom='0'}
+      inp.parentNode.insertBefore(w,inp);w.appendChild(inp);
+      const b=document.createElement('button');b.type='button';b.className='pweye';
+      b.setAttribute('aria-label','Show password');b.innerHTML=EYE;
+      b.addEventListener('mousedown',e=>e.preventDefault());
+      b.addEventListener('click',()=>{const show=inp.type==='password';inp.type=show?'text':'password';
+        b.innerHTML=show?EYE_OFF:EYE;b.setAttribute('aria-label',show?'Hide password':'Show password');inp.focus()});
+      w.appendChild(b);
+    });
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',add);else add();
+})();
