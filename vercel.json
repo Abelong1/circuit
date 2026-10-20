@@ -1,8 +1,8 @@
 {
   "cleanUrls": true,
-  "rewrites": [
-    { "source": "/join", "destination": "/" },
-    { "source": "/login", "destination": "/" },
-    { "source": "/signup", "destination": "/" }
+  "redirects": [
+    { "source": "/join", "destination": "/", "permanent": true },
+    { "source": "/login", "destination": "/", "permanent": true },
+    { "source": "/signup", "destination": "/", "permanent": true }
   ]
 }
