@@ -41,6 +41,16 @@ input:focus{border-color:var(--soft)}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:8px;font-weight:700}
 td{padding:12px 8px;border-top:2px solid var(--line);vertical-align:top}
+@media (max-width:720px){
+  table,tbody,tr,td{display:block;width:100%}
+  table tr:first-child:has(th){display:none}
+  tr{border-top:2px solid var(--line);padding:12px 2px}
+  table tr:nth-child(2){border-top:0}
+  td{border:0;padding:5px 0;overflow-wrap:anywhere}
+  td[data-l]::before{content:attr(data-l);display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:2px}
+  td:empty{display:none}
+  td.empty{display:block}
+}
 .pill{display:inline-block;border-radius:12px;font-size:12px;font-weight:700;padding:4px 11px}
 .active{background:var(--okbg);color:var(--okink)}
 .suspended{background:var(--warnbg);color:var(--warnink)}
@@ -261,6 +271,13 @@ async function audit(){
     </table></div>`;
 }
 boot();
+</script>
+<script>
+/* Phone layout: give each cell its column name so rows stack as cards. */
+(function(){function lab(){document.querySelectorAll('#view table').forEach(t=>{const h=[...t.querySelectorAll('tr:first-child th')].map(x=>x.textContent.trim());
+  t.querySelectorAll('tr').forEach(r=>[...r.children].forEach((c,i)=>{if(c.tagName==='TD'&&h[i]&&!c.classList.contains('empty'))c.dataset.l=h[i]}))})}
+  const go=()=>{const v=document.getElementById('view');if(!v)return;new MutationObserver(lab).observe(v,{childList:true,subtree:true});lab()};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',go);else go()})();
 </script>
 </body>
 </html>
