@@ -17,6 +17,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/logo.js?v=18"></script>
+<script src="/pages.js?v=1"></script>
 <style>
 :root{
   --sand:#EFE2D2;--paper:#FBF3E8;--card:#fff;--brand:#C9472F;--soft:#E4694F;
@@ -252,7 +253,7 @@ header h2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       <input id="su-em" type="email" autocomplete="email" placeholder="you@email.com">
       <label for="su-pw">Password</label>
       <input id="su-pw" type="password" autocomplete="new-password" placeholder="At least 6 characters">
-      <div class="terms"><input type="checkbox" id="su-tc"><span>I have read and accept the Circuit Terms &amp; Community Policy, including that ACES officers can see the real identity behind any handle.</span></div>
+      <div class="terms"><input type="checkbox" id="su-tc"><span>I have read and accept the Circuit <a href="#" onclick="event.preventDefault();openDocSheet('terms')" style="color:var(--brand);font-weight:700">Terms of Service</a> and <a href="#" onclick="event.preventDefault();openDocSheet('privacy')" style="color:var(--brand);font-weight:700">Privacy Policy</a>, including that ACES officers can see the real identity behind any handle.</span></div>
       <button class="primary" id="su-btn" onclick="doSignup()">Create account</button>
       <div class="err" id="su-err"></div>
       <button class="linkbtn" onclick="swap('login')">Already have an account? Log in</button>
@@ -394,7 +395,7 @@ function navBadge(k){const n={friends:pending,msgs:msgUnread,notifs:notifUnread}
 function paintNav(){
   const brand=`<div class="brand">${blob('circuit',34,'#CF6A4F')}Circuit</div>`;
   $('rail').innerHTML=brand+NAV.map(([k,l])=>
-    `<button class="${k===screen?'on':''}" onclick="go('${k}')" aria-label="${l}">${ICON[k]}<span>${l}</span>${navBadge(k)}</button>`).join('');
+    `<button class="${k===screen||(screen==='page'&&k==='me')?'on':''}" onclick="go('${k}')" aria-label="${l}">${ICON[k]}<span>${l}</span>${navBadge(k)}</button>`).join('');
 }
 function paintAside(){
   if(!me)return;
@@ -417,7 +418,7 @@ function go(s){
   $('ft').classList.add('hide');$('ft').innerHTML='';pendingFile=null;
   $('chipbar').innerHTML='';$('chipbar').className='';$('view').innerHTML='';
   if(s!=='chat'&&chan){sb.removeChannel(chan);chan=null;liveDown.delete('chat');livePoll()}
-  ({home:scrHome,post:scrPost,friends:scrFriends,msgs:scrMsgs,chat:scrChat,notifs:scrNotifs,me:scrMe})[s]();
+  ({home:scrHome,post:scrPost,friends:scrFriends,msgs:scrMsgs,chat:scrChat,notifs:scrNotifs,me:scrMe,page:scrPage})[s]();
   window.scrollTo(0,0);
 }
 function hdr(title,opts={}){
@@ -1117,7 +1118,16 @@ function scrMe(){
     ${me.role==='admin'?`<a class="rowcard" href="/admin" style="width:100%;text-decoration:none;color:inherit">
       <b style="flex:1">Admin dashboard</b><span class="pill">Officer</span></a>`:''}
     <div id="installrow"></div>
+    <div class="mgroup">
+      <button onclick="openPage('settings')"><b>Settings</b><span class="chev">›</span></button>
+      <button onclick="openPage('help')"><b>Help Center</b><span class="chev">›</span></button>
+    </div>
+    <div class="mgroup">
+      <button onclick="openPage('terms')"><b>Terms of Service</b><span class="chev">›</span></button>
+      <button onclick="openPage('privacy')"><b>Privacy Policy</b><span class="chev">›</span></button>
+    </div>
     <button class="secondary" onclick="logout()">Log out</button>`;
+  docStyles();
   if(deferredPrompt)showInstall();
 }
 
