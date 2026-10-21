@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 
 /* Faster chat + fewer requests (overrides; same code as index.html source). */
+let chatMore=false,chatKeep=null;const MSGPAGE=50;
 let chatRows=[],chatHidden=new Set(),chatSince=null,chatReads={},marking=0,feedAt={},annAt=0;
 (function(){const st=document.createElement('style');st.textContent='.rcpt{text-align:right;font-size:12px;color:var(--muted);margin:-2px 34px 6px 0}';document.head.appendChild(st)})();
 document.addEventListener('DOMContentLoaded',function(){
@@ -54,10 +55,12 @@ window.scrChat=async function scrChat(){
     <button class="attach" onclick="pickFile()" aria-label="Attach photo or file">${ICON.clip}</button>
     <input id="mg" placeholder="Message…"><button class="tiny" id="sendbtn" onclick="sendMsg()">Send</button>`;
   $('mg').addEventListener('keydown',e=>{if(e.key==='Enter')sendMsg()});
-  chatRows=[];chatReads={};
+  chatRows=[];chatReads={};chatMore=false;
   await paintMsgs('full');
+  subChat(conv);
+};
+window.subChat=function subChat(c){
   if(chan)sb.removeChannel(chan);
-  const c=conv;
   chan=sb.channel('conv'+c).on('postgres_changes',
     {event:'*',schema:'public',table:'aces_messages',filter:'conversation_id=eq.'+c},p=>{
       if(conv!==c)return;
@@ -67,21 +70,33 @@ window.scrChat=async function scrChat(){
       paintMsgs()})
     .on('postgres_changes',{event:'*',schema:'public',table:'aces_conversation_reads',filter:'conversation_id=eq.'+c},p=>{
       if(conv!==c||!p.new||!p.new.user_id)return;
-      chatReads[p.new.user_id]=p.new.last_read_at;paintMsgs()}).subscribe();
+      chatReads[p.new.user_id]=p.new.last_read_at;paintMsgs()}).subscribe(typeof liveStatus==='function'?liveStatus('chat'):undefined);
+};
+window.loadOlder=async function loadOlder(){
+  if(!chatRows.length)return;const c=conv,b=document.querySelector('#view .older');
+  if(b){b.disabled=true;b.textContent='Loading…'}
+  const {data,error}=await sb.from('aces_messages').select(MSGCOLS).eq('conversation_id',c)
+    .lt('created_at',chatRows[0].created_at).order('created_at',{ascending:false}).limit(MSGPAGE);
+  if(conv!==c||screen!=='chat')return;
+  if(error){if(b){b.disabled=false;b.textContent='Load earlier messages'}return toast(error.message)}
+  const have=new Set(chatRows.map(x=>x.id));
+  chatRows=(data||[]).reverse().filter(x=>!have.has(x.id)).concat(chatRows);
+  chatMore=(data||[]).length===MSGPAGE;
+  chatKeep=document.body.scrollHeight-window.scrollY;lastChatHtml='';paintMsgs();
 };
 window.paintMsgs=async function paintMsgs(mode){
   const my=++painting;
   if(mode==='full'){
     const c=conv,grp=(convMeta[c]||{}).isGroup;
     const [{data},{data:hid},{data:ch},{data:rd},mem]=await Promise.all([
-      sb.from('aces_messages').select('*').eq('conversation_id',c).order('created_at'),
+      sb.from('aces_messages').select(MSGCOLS).eq('conversation_id',c).order('created_at',{ascending:false}).limit(Math.max(MSGPAGE,chatRows.length)),
       sb.from('aces_message_hidden').select('message_id'),
       sb.from('aces_conversation_hidden').select('hidden_at').eq('conversation_id',c).maybeSingle(),
       sb.from('aces_conversation_reads').select('user_id,last_read_at').eq('conversation_id',c),
       grp?sb.rpc('aces_conv_members',{p_conv:c}):Promise.resolve({data:null})]);
     if(conv!==c)return;
     if(mem.data){convMembers[c]={};mem.data.forEach(u=>convMembers[c][u.user_id]=u.handle)}
-    chatRows=data||[];chatHidden=new Set((hid||[]).map(h=>h.message_id));
+    chatMore=(data||[]).length>=Math.max(MSGPAGE,chatRows.length);chatRows=(data||[]).reverse();chatHidden=new Set((hid||[]).map(h=>h.message_id));
     chatSince=ch&&ch.hidden_at?new Date(ch.hidden_at):null;
     chatReads={};(rd||[]).forEach(r=>chatReads[r.user_id]=r.last_read_at);
   }
@@ -125,12 +140,14 @@ window.paintMsgs=async function paintMsgs(mode){
       rc=`<div class="rcpt">${n?(grp?'Seen by '+n:'Seen'):'Sent'}</div>`}
     return `<div class="mrow ${mine?'mine':'theirs'}"><div class="bub${isPhoto&&!x.body?' photo':''}">${from}${att}${x.body?esc(x.body):''}</div>
       <button class="mmenu" onclick="msgMenu(${x.id})" aria-label="Message options">⋯</button></div>${rc}`}).join('')
-    ||(sendingHtml?'':'<div class="empty">Say hello.</div>');
+    ||(sendingHtml||chatMore?'':'<div class="empty">Say hello.</div>');
+  if(chatMore)html='<button class="older" onclick="loadOlder()">Load earlier messages</button>'+html;
   html+=sendingHtml;
   if(html===lastChatHtml)return;
   lastChatHtml=html;
   $('view').innerHTML=html;
-  window.scrollTo(0,document.body.scrollHeight);
+  if(chatKeep!=null){window.scrollTo(0,document.body.scrollHeight-chatKeep);chatKeep=null}
+  else window.scrollTo(0,document.body.scrollHeight);
 };
 window.sendMsg=async function sendMsg(){
   const i=$('mg'),b=i.value.trim();let f=pendingFile;

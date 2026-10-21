@@ -1,8 +1,26 @@
 {
   "cleanUrls": true,
   "redirects": [
-    { "source": "/join", "destination": "/", "permanent": true },
-    { "source": "/login", "destination": "/", "permanent": true },
-    { "source": "/signup", "destination": "/", "permanent": true }
+    {
+      "source": "/join",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/login",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/signup",
+      "destination": "/",
+      "permanent": true
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/keepalive",
+      "schedule": "0 20 * * *"
+    }
   ]
 }

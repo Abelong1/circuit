@@ -1,7 +1,7 @@
 // Circuit service worker. App code is network-first so updates show immediately;
 // the saved copy is only used offline. Never caches Supabase data.
-const V = 'circuit-v17';
-const SHELL = ['/', '/logo.js?v=17', '/manifest.webmanifest', '/icon-192.png',
+const V = 'circuit-v18';
+const SHELL = ['/', '/logo.js?v=18', '/manifest.webmanifest', '/icon-192.png',
   '/icon-maskable-192.png', '/apple-touch-icon.png', '/favicon-32.png'];
 
 self.addEventListener('install', e => {
