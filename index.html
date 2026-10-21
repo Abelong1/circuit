@@ -17,7 +17,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="/logo.js?v=18"></script>
-<script src="/pages.js?v=1"></script>
+<script src="/pages.js?v=2"></script>
 <style>
 :root{
   --sand:#EFE2D2;--paper:#FBF3E8;--card:#fff;--brand:#C9472F;--soft:#E4694F;
@@ -1118,6 +1118,8 @@ function scrMe(){
     ${me.role==='admin'?`<a class="rowcard" href="/admin" style="width:100%;text-decoration:none;color:inherit">
       <b style="flex:1">Admin dashboard</b><span class="pill">Officer</span></a>`:''}
     <div id="installrow"></div>
+    ${typeof toolsHtml==='function'?toolsHtml():''}
+    <div class="sec">More</div>
     <div class="mgroup">
       <button onclick="openPage('settings')"><b>Settings</b><span class="chev">›</span></button>
       <button onclick="openPage('help')"><b>Help Center</b><span class="chev">›</span></button>

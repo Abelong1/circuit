@@ -156,3 +156,22 @@ async function logoutAll(){
   if(chan)sb.removeChannel(chan);
   await sb.auth.signOut({scope:'global'});location.reload();
 }
+
+/* ACES Tools: apps built for ACES members. Each opens in a new tab. */
+const TOOLS = [
+  {name:'NaviGate', desc:'Pocket reference for components, logic gates and number conversions.', url:'https://navigate123.netlify.app', bg:'#1E1A12', fg:'#E8B53A', mark:'N'},
+  {name:'Calculator Alligator', desc:"Resistor color codes, Ohm's law, voltage dividers, Boolean algebra and K-maps.", url:'https://calligator.netlify.app', bg:'#007225', fg:'#fff', mark:'CA'},
+  {name:'Orrca', desc:'DSP and signal toolkit for CPE students.', url:'https://orrca.netlify.app', bg:'#1B4F8A', fg:'#fff', mark:'O'},
+  {name:'HIVE', desc:'CPE thesis digital archive.', url:'https://hive-theta-two.vercel.app', bg:'#F2A900', fg:'#1E1210', mark:'H'}
+];
+function toolsHtml(){
+  docStyles();
+  return `<div class="sec">ACES Tools</div><div class="mgroup tools">${TOOLS.map(t=>
+    `<a href="${t.url}" target="_blank" rel="noopener"><span class="tmark" style="background:${t.bg};color:${t.fg}">${t.mark}</span>
+      <span style="flex:1;min-width:0"><b style="display:block">${esc(t.name)}</b><span class="tdesc">${esc(t.desc)}</span></span>
+      <span class="chev" aria-hidden="true">↗</span></a>`).join('')}</div>`;
+}
+(function(){const st=document.createElement('style');
+  st.textContent='.tools .tmark{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font:700 15px Fredoka,sans-serif;flex:none}'+
+  '.tools .tdesc{display:block;font-size:13px;color:var(--muted);line-height:1.4;margin-top:2px}.tools b{flex:none}';
+  document.head.appendChild(st)})();
