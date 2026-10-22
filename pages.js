@@ -159,9 +159,9 @@ async function logoutAll(){
 
 /* ACES Tools: apps built for ACES members. Each opens in a new tab. */
 const TOOLS = [
-  {name:'NaviGate', desc:'Pocket reference for components, logic gates and number conversions.', url:'https://navigate123.netlify.app', bg:'#1E1A12', fg:'#E8B53A', mark:'N'},
-  {name:'Calculator Alligator', desc:"Resistor color codes, Ohm's law, voltage dividers, Boolean algebra and K-maps.", url:'https://calligator.netlify.app', bg:'#007225', fg:'#fff', mark:'CA'},
-  {name:'Orrca', desc:'DSP and signal toolkit for CPE students.', url:'https://orrca.netlify.app', bg:'#1B4F8A', fg:'#fff', mark:'O'},
+  {name:'NaviGate', desc:'Pocket reference for components, logic gates and number conversions.', url:'https://navigate-red.vercel.app', bg:'#7B3FD0', fg:'#fff', mark:'N'},
+  {name:'Calculator Alligator', desc:"Resistor color codes, Ohm's law, voltage dividers, Boolean algebra and K-maps.", url:'https://calligator.vercel.app', bg:'#007225', fg:'#fff', mark:'CA'},
+  {name:'Orrca', desc:'DSP and signal toolkit for CPE students.', url:'https://orrca.vercel.app', bg:'#8294D6', fg:'#fff', mark:'O'},
   {name:'HIVE', desc:'CPE thesis digital archive.', url:'https://hive-theta-two.vercel.app', bg:'#F2A900', fg:'#1E1210', mark:'H'}
 ];
 function toolsHtml(){
