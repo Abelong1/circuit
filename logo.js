@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 
 /* Faster chat + fewer requests (overrides; same code as index.html source). */
-let chatMore=false,chatKeep=null;const MSGPAGE=50;
+let chatMore=false,chatKeep=null,chatLastId=undefined;const MSGPAGE=50;
 let chatRows=[],chatHidden=new Set(),chatSince=null,chatReads={},marking=0,feedAt={},annAt=0;
 (function(){const st=document.createElement('style');st.textContent='.rcpt{text-align:right;font-size:12px;color:var(--muted);margin:-2px 34px 6px 0}';document.head.appendChild(st)})();
 document.addEventListener('DOMContentLoaded',function(){
@@ -55,7 +55,7 @@ window.scrChat=async function scrChat(){
     <button class="attach" onclick="pickFile()" aria-label="Attach photo or file">${ICON.clip}</button>
     <input id="mg" placeholder="Message…"><button class="tiny" id="sendbtn" onclick="sendMsg()">Send</button>`;
   $('mg').addEventListener('keydown',e=>{if(e.key==='Enter')sendMsg()});
-  chatRows=[];chatReads={};chatMore=false;
+  chatRows=[];chatReads={};chatMore=false;chatLastId=undefined;
   await paintMsgs('full');
   subChat(conv);
 };
@@ -156,9 +156,13 @@ window.paintMsgs=async function paintMsgs(mode){
   html+=sendingHtml;
   if(html===lastChatHtml)return;
   lastChatHtml=html;
+  // only jump to the bottom for a new message (or when already there); reactions keep your place
+  const y=window.scrollY,atEnd=window.innerHeight+y>=document.body.scrollHeight-80;
+  const lastId=list.length?list[list.length-1].id:null,isNew=lastId!==chatLastId||!!sendingHtml;chatLastId=lastId;
   $('view').innerHTML=html;
   if(chatKeep!=null){window.scrollTo(0,document.body.scrollHeight-chatKeep);chatKeep=null}
-  else window.scrollTo(0,document.body.scrollHeight);
+  else if(isNew||atEnd)window.scrollTo(0,document.body.scrollHeight);
+  else window.scrollTo(0,y);
 };
 window.sendMsg=async function sendMsg(){
   const i=$('mg'),b=i.value.trim();let f=pendingFile;
