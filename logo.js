@@ -1,7 +1,7 @@
 /* Circuit mascot — one definition shared by the app and the admin page. */
-const BLOBS=['#C84B31','#D95B43','#E07A5F','#EE8F71','#A43820','#B85B28','#3E9B80','#5B9A84','#4E8172',
-'#7BB3A0','#2A6B61','#6B8E62','#F8F1E5','#FFFFFF','#EFE6D5','#FAF4EA','#E4D8C5','#D8CBB7','#3B2418',
-'#534338','#D2C4B3','#7D7268','#2C1A11','#F4A261','#E9C46A','#8A9A86','#D08C9B'];
+// 16 clearly different hues so members are easy to tell apart (was 27, many near-identical creams/browns)
+const BLOBS=['#D7263D','#F46036','#F4A261','#E9C46A','#8AB833','#3E9B50','#2A9D8F','#1FA4C4',
+'#2E6FD8','#5145CD','#8E44AD','#C2185B','#E86A92','#8B5A2B','#5C6B7A','#2C1A11'];
 const CUSTOM={caffeinatedtransistor22:'#0F52BA'};
 function tint(h){if(CUSTOM[h])return CUSTOM[h];let n=2166136261;for(const c of String(h)){n^=c.charCodeAt(0);n=Math.imul(n,16777619)>>>0}return BLOBS[n%BLOBS.length]}
 function isLight(hex){const v=parseInt(hex.slice(1),16),r=v>>16,g=(v>>8)&255,b=v&255;return (0.299*r+0.587*g+0.114*b)>200}
