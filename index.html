@@ -1000,15 +1000,18 @@ function clearFile(){pendingFile=null;const pf=$('pf');if(pf){pf.classList.add('
 let painting=0;
 async function paintMsgs(){
   const my=++painting;
-  const [{data},{data:hid},{data:ch},{data:mrx}]=await Promise.all([
+  const [{data},{data:hid},{data:ch}]=await Promise.all([
     sb.from('aces_messages').select('*').eq('conversation_id',conv).order('created_at'),
     sb.from('aces_message_hidden').select('message_id'),
-    sb.from('aces_conversation_hidden').select('hidden_at').eq('conversation_id',conv).maybeSingle(),
-    sb.from('aces_message_reactions').select('message_id,user_id,emoji,aces_messages!inner(conversation_id)').eq('aces_messages.conversation_id',conv)]);
+    sb.from('aces_conversation_hidden').select('hidden_at').eq('conversation_id',conv).maybeSingle()]);
   if(screen!=='chat'||my!==painting)return;
   const hidden=new Set((hid||[]).map(h=>h.message_id)),since=ch&&ch.hidden_at?new Date(ch.hidden_at):null;
   const list=(data||[]).filter(x=>!hidden.has(x.id)&&(!since||new Date(x.created_at)>since));
   msgCache={};list.forEach(x=>msgCache[x.id]=x);
+  const rxIds=list.filter(x=>!x.unsent_at).map(x=>x.id).slice(-300);
+  const {data:mrx,error:rxErr}=rxIds.length?await sb.from('aces_message_reactions').select('message_id,user_id,emoji').in('message_id',rxIds):{data:[]};
+  if(rxErr)console.warn('reactions',rxErr.message);
+  if(screen!=='chat'||my!==painting)return;
   msgRx={};(mrx||[]).forEach(r=>(msgRx[r.message_id]=msgRx[r.message_id]||[]).push(r));
   const now=Date.now();
   const want=[];
