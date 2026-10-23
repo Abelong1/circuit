@@ -70,7 +70,16 @@ window.subChat=function subChat(c){
       paintMsgs()})
     .on('postgres_changes',{event:'*',schema:'public',table:'aces_conversation_reads',filter:'conversation_id=eq.'+c},p=>{
       if(conv!==c||!p.new||!p.new.user_id)return;
-      chatReads[p.new.user_id]=p.new.last_read_at;paintMsgs()}).subscribe(typeof liveStatus==='function'?liveStatus('chat'):undefined);
+      chatReads[p.new.user_id]=p.new.last_read_at;paintMsgs()})
+    .on('postgres_changes',{event:'*',schema:'public',table:'aces_message_reactions'},()=>{if(conv===c)loadMsgRx(c)}).subscribe(typeof liveStatus==='function'?liveStatus('chat'):undefined);
+};
+window.loadMsgRx=async function loadMsgRx(c,quiet){
+  const ids=chatRows.filter(x=>!x.unsent_at).map(x=>x.id);
+  const {data,error}=ids.length?await sb.from('aces_message_reactions').select('message_id,user_id,emoji').in('message_id',ids):{data:[]};
+  if(conv!==c)return;
+  if(error)return console.warn('reactions',error.message);
+  msgRx={};(data||[]).forEach(r=>(msgRx[r.message_id]=msgRx[r.message_id]||[]).push(r));
+  if(!quiet)paintMsgs();
 };
 window.loadOlder=async function loadOlder(){
   if(!chatRows.length)return;const c=conv,b=document.querySelector('#view .older');
@@ -82,7 +91,7 @@ window.loadOlder=async function loadOlder(){
   const have=new Set(chatRows.map(x=>x.id));
   chatRows=(data||[]).reverse().filter(x=>!have.has(x.id)).concat(chatRows);
   chatMore=(data||[]).length===MSGPAGE;
-  chatKeep=document.body.scrollHeight-window.scrollY;lastChatHtml='';paintMsgs();
+  chatKeep=document.body.scrollHeight-window.scrollY;lastChatHtml='';paintMsgs();loadMsgRx(c);
 };
 window.paintMsgs=async function paintMsgs(mode){
   const my=++painting;
@@ -99,6 +108,7 @@ window.paintMsgs=async function paintMsgs(mode){
     chatMore=(data||[]).length>=Math.max(MSGPAGE,chatRows.length);chatRows=(data||[]).reverse();chatHidden=new Set((hid||[]).map(h=>h.message_id));
     chatSince=ch&&ch.hidden_at?new Date(ch.hidden_at):null;
     chatReads={};(rd||[]).forEach(r=>chatReads[r.user_id]=r.last_read_at);
+    await loadMsgRx(c,true);
   }
   if(screen!=='chat'||my!==painting)return;
   chatRows.sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
@@ -138,7 +148,8 @@ window.paintMsgs=async function paintMsgs(mode){
     const from=grp&&!mine?`<span class="from">${esc(mem[x.sender_id]||'member')}</span>`:'';
     let rc='';if(x===lastMine){const t=new Date(x.created_at),n=Object.keys(chatReads).filter(u=>+u!==me.id&&new Date(chatReads[u])>=t).length;
       rc=`<div class="rcpt">${n?(grp?'Seen by '+n:'Seen'):'Sent'}</div>`}
-    return `<div class="mrow ${mine?'mine':'theirs'}"><div class="bub${isPhoto&&!x.body?' photo':''}">${from}${att}${x.body?esc(x.body):''}</div>
+    const rb=typeof msgRxBadge==='function'?msgRxBadge(x.id,grp?mem:{[x.sender_id]:(convMeta[conv]||{}).title}):'';
+    return `<div class="mrow ${mine?'mine':'theirs'}${rb?' hasrx':''}"><div class="bub${isPhoto&&!x.body?' photo':''}">${from}${att}${x.body?esc(x.body):''}${rb}</div>
       <button class="mmenu" onclick="msgMenu(${x.id})" aria-label="Message options">⋯</button></div>${rc}`}).join('')
     ||(sendingHtml||chatMore?'':'<div class="empty">Say hello.</div>');
   if(chatMore)html='<button class="older" onclick="loadOlder()">Load earlier messages</button>'+html;
