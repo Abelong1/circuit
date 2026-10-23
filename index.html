@@ -133,6 +133,17 @@ header h2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bub .file{display:flex;align-items:center;gap:8px;font-weight:700;text-decoration:underline;color:inherit}
 .mmenu{width:32px;height:32px;border-radius:16px;color:var(--muted);font-size:18px;line-height:1;flex:none;opacity:.7}
 .mmenu:hover{background:var(--card);opacity:1}
+.rxrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.rx{height:30px;padding:0 10px;border-radius:15px;background:var(--paper);color:var(--body);font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:4px}
+.rx.on{background:var(--brand);color:#fff}
+.rx.add{color:var(--muted)}
+.mrx{display:flex;flex-wrap:wrap;gap:4px;margin:-4px 44px 10px}
+.mrx.mine{justify-content:flex-end}
+.mrx .rx{height:26px;padding:0 8px;background:var(--card)}
+.mrx .rx.on{background:var(--brand)}
+.emrow{display:flex;justify-content:space-between;gap:6px;margin-bottom:12px}
+.emrow button{width:48px;height:48px;border-radius:24px;background:var(--card);font-size:24px}
+.emrow button.on{background:var(--brand)}
 #ft{position:fixed;left:0;right:0;bottom:0;background:var(--paper);padding:12px 20px calc(92px + env(safe-area-inset-bottom));
     display:flex;gap:8px;align-items:center;max-width:620px;margin:0 auto;flex-wrap:wrap}
 #ft input[type=text],#ft #mg,#ft #cm{flex:1;min-width:0}
@@ -691,6 +702,8 @@ async function scrPost(){
   const h=handles[p.author_id]||'member';
   const {data:cr,count:cTotal}=await sb.from('aces_comments').select('id,author_id,body,created_at',{count:'exact'}).eq('post_id',openPost).order('created_at',{ascending:false}).limit(commentLimit);
   const cs=(cr||[]).reverse(),cN=cTotal??cs.length;
+  const {data:crx}=cs.length?await sb.from('aces_reactions').select('target_id,user_id,emoji').eq('target_type','comment').in('target_id',cs.map(c=>c.id)):{data:[]};
+  cmtRx={};cs.forEach(c=>cmtRx[c.id]=[]);(crx||[]).forEach(r=>(cmtRx[r.target_id]||[]).push(r));
   if(screen!=='post')return;
   $('view').innerHTML=`<article class="card">
     <div class="who">${blob(h,40)}<div style="flex:1"><div class="nm">${esc(h)}</div><div class="tm">${ago(p.created_at)}${p.edited_at?' · edited':''}</div></div>
@@ -702,7 +715,7 @@ async function scrPost(){
     ${cN>cs.length?`<button class="older" onclick="commentLimit+=100;scrPost()">Show earlier comments</button>`:''}
     ${(cs||[]).map(c=>{const ch=handles[c.author_id]||'member';
       return `<article class="card"><div class="who">${blob(ch,32)}<div style="flex:1"><div class="nm">${esc(ch)}</div><div class="tm">${ago(c.created_at)}</div></div></div>
-      <p class="ptext" style="margin-bottom:0">${fmt(c.body)}</p></article>`}).join('')
+      <p class="ptext" style="margin-bottom:0">${fmt(c.body)}</p><div class="rxrow" id="rx-c-${c.id}">${cmtRxHtml(c.id)}</div></article>`}).join('')
       ||'<div class="empty">No comments yet. Start the thread.</div>'}`;
 }
 async function sendComment(){
@@ -710,6 +723,37 @@ async function sendComment(){
   const {error}=await sb.from('aces_comments').insert({post_id:openPost,author_id:me.id,body:b});
   if(error)return toast(error.message);
   scrPost();
+}
+
+/* ---------- reactions (comments + messages): one emoji per member per item ---------- */
+const EMOJIS=['👍','❤️','😂','😮','😢','🔥'];
+let cmtRx={},msgRx={};
+function rxChips(rows,kind,id,names){
+  const g={};rows.forEach(r=>{(g[r.emoji]=g[r.emoji]||{n:0,mine:0,who:[]}).n++;if(r.user_id===me.id)g[r.emoji].mine=1;g[r.emoji].who.push(r.user_id===me.id?'You':(names[r.user_id]||'member'))});
+  return Object.entries(g).map(([e,x])=>`<button class="rx ${x.mine?'on':''}" title="${esc(x.who.join(', '))}" onclick="setRx('${kind}',${id},'${e}')">${e} ${x.n}</button>`).join('');
+}
+function cmtRxHtml(id){return rxChips(cmtRx[id]||[],'c',id,handles)+`<button class="rx add" onclick="pickRx('c',${id})" aria-label="React">☺ +</button>`}
+function pickRx(kind,id){
+  const cur=((kind==='c'?cmtRx:msgRx)[id]||[]).find(r=>r.user_id===me.id);
+  $('shtitle').textContent='React';
+  $('shbody').innerHTML=`<div class="emrow">${EMOJIS.map(e=>`<button class="${cur&&cur.emoji===e?'on':''}" onclick="closeSheet();setRx('${kind}',${id},'${e}')">${e}</button>`).join('')}</div>`;
+  $('sheet').classList.add('on');
+}
+async function setRx(kind,id,emoji){
+  const store=kind==='c'?cmtRx:msgRx,rows=store[id]=store[id]||[],prev=[...rows];
+  const cur=rows.find(r=>r.user_id===me.id),off=cur&&cur.emoji===emoji;
+  store[id]=rows.filter(r=>r.user_id!==me.id);if(!off)store[id].push({user_id:me.id,emoji});
+  if(kind==='c'){const el=$('rx-c-'+id);if(el)el.innerHTML=cmtRxHtml(id)}
+  let error;
+  if(kind==='c'){
+    if(cur)({error}=await sb.from('aces_reactions').delete().eq('target_type','comment').eq('target_id',id).eq('user_id',me.id));
+    if(!error&&!off)({error}=await sb.from('aces_reactions').insert({user_id:me.id,target_type:'comment',target_id:id,emoji}));
+  }else{
+    ({error}=off?await sb.from('aces_message_reactions').delete().eq('message_id',id).eq('user_id',me.id)
+      :await sb.from('aces_message_reactions').upsert({message_id:id,user_id:me.id,emoji}));
+  }
+  if(error){store[id]=prev;if(kind==='c'){const el=$('rx-c-'+id);if(el)el.innerHTML=cmtRxHtml(id)}toast(error.message)}
+  if(kind==='m')paintMsgs();
 }
 
 /* ---------- friends ---------- */
@@ -940,7 +984,8 @@ async function scrChat(){
   await paintMsgs();
   if(chan)sb.removeChannel(chan);
   chan=sb.channel('conv'+conv).on('postgres_changes',
-    {event:'*',schema:'public',table:'aces_messages',filter:'conversation_id=eq.'+conv},()=>paintMsgs()).subscribe();
+    {event:'*',schema:'public',table:'aces_messages',filter:'conversation_id=eq.'+conv},()=>paintMsgs())
+    .on('postgres_changes',{event:'*',schema:'public',table:'aces_message_reactions'},()=>paintMsgs()).subscribe();
 }
 function pickFile(){
   const fp=$('filepick');fp.value='';
@@ -954,14 +999,16 @@ function clearFile(){pendingFile=null;const pf=$('pf');if(pf){pf.classList.add('
 let painting=0;
 async function paintMsgs(){
   const my=++painting;
-  const [{data},{data:hid},{data:ch}]=await Promise.all([
+  const [{data},{data:hid},{data:ch},{data:mrx}]=await Promise.all([
     sb.from('aces_messages').select('*').eq('conversation_id',conv).order('created_at'),
     sb.from('aces_message_hidden').select('message_id'),
-    sb.from('aces_conversation_hidden').select('hidden_at').eq('conversation_id',conv).maybeSingle()]);
+    sb.from('aces_conversation_hidden').select('hidden_at').eq('conversation_id',conv).maybeSingle(),
+    sb.from('aces_message_reactions').select('message_id,user_id,emoji,aces_messages!inner(conversation_id)').eq('aces_messages.conversation_id',conv)]);
   if(screen!=='chat'||my!==painting)return;
   const hidden=new Set((hid||[]).map(h=>h.message_id)),since=ch&&ch.hidden_at?new Date(ch.hidden_at):null;
   const list=(data||[]).filter(x=>!hidden.has(x.id)&&(!since||new Date(x.created_at)>since));
   msgCache={};list.forEach(x=>msgCache[x.id]=x);
+  msgRx={};(mrx||[]).forEach(r=>(msgRx[r.message_id]=msgRx[r.message_id]||[]).push(r));
   const now=Date.now();
   const want=[];
   list.filter(x=>x.attachment_path&&!x.unsent_at).forEach(x=>{
@@ -990,7 +1037,8 @@ async function paintMsgs(){
         :`<a class="file" href="${esc(u||'#')}" target="_blank" rel="noopener">📎 ${esc(x.attachment_name||'File')}</a>`}
     const from=grp&&!mine?`<span class="from">${esc(mem[x.sender_id]||'member')}</span>`:'';
     return `<div class="mrow ${mine?'mine':'theirs'}"><div class="bub${isPhoto&&!x.body?' photo':''}">${from}${att}${x.body?esc(x.body):''}</div>
-      <button class="mmenu" onclick="msgMenu(${x.id})" aria-label="Message options">⋯</button></div>`}).join('')
+      <button class="mmenu" onclick="msgMenu(${x.id})" aria-label="Message options">⋯</button></div>
+      ${msgRx[x.id]?`<div class="mrx ${mine?'mine':''}">${rxChips(msgRx[x.id],'m',x.id,grp?mem:{[x.sender_id]:(convMeta[conv]||{}).title})}</div>`:''}`}).join('')
     ||(sendingHtml?'':'<div class="empty">Say hello.</div>');
   html+=sendingHtml;
   if(html===lastChatHtml)return;
@@ -1055,6 +1103,7 @@ function msgMenu(id){
   const mine=x.sender_id===me.id;
   $('shtitle').textContent='Message';
   $('shbody').innerHTML=
+    (!x.unsent_at?`<div class="emrow">${EMOJIS.map(e=>`<button class="${(msgRx[id]||[]).some(r=>r.user_id===me.id&&r.emoji===e)?'on':''}" onclick="closeSheet();setRx('m',${id},'${e}')">${e}</button>`).join('')}</div>`:'')+
     (mine&&!x.unsent_at?`<button class="rowcard" style="width:100%;text-align:left" onclick="unsend(${id})"><b style="flex:1">Unsend for everyone</b><span>›</span></button>`:'')+
     `<button class="rowcard" style="width:100%;text-align:left" onclick="hideMsg(${id})"><b style="flex:1">Delete for me</b><span>›</span></button>`;
   $('sheet').classList.add('on');
