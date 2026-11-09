@@ -95,6 +95,11 @@ header h2 span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .act.flag{margin-left:auto;padding:0 14px}
 .pill{font-size:12px;font-weight:700;border-radius:12px;padding:4px 10px;background:var(--okbg);color:var(--okink);flex:none}
 .pill.feed{background:var(--paper);color:var(--muted);border:2px solid var(--line)}
+.pill.sold{background:var(--line);color:var(--muted)}
+.salebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px}
+.price{font-size:20px;font-weight:800;color:var(--ink)}
+.chatsell{margin-left:auto}
+#pricebox input{width:100%;margin:10px 0 0}
 .empty{text-align:center;color:var(--muted);padding:44px 16px;font-size:15px;line-height:1.5}
 .sec{font-size:14px;font-weight:700;color:var(--muted);margin:18px 0 10px;display:flex;align-items:center;gap:8px}
 .count{background:var(--brand);color:#fff;border-radius:11px;font-size:12px;padding:1px 9px}
@@ -303,7 +308,7 @@ const ago=t=>{const d=(Date.now()-new Date(t))/1000;
   if(d<86400)return Math.floor(d/3600)+'h ago';if(d<172800)return'yesterday';
   return Math.floor(d/86400)+'d ago'};
 const MAXFILE=10*1024*1024;
-const POSTCOLS='id,author_id,feed,body,image_url,created_at,edited_at';
+const POSTCOLS='id,author_id,feed,body,image_url,created_at,edited_at,price,is_sold';
 const MSGCOLS='id,conversation_id,sender_id,body,created_at,attachment_path,attachment_name,attachment_type,unsent_at';
 
 const ICON={
@@ -323,9 +328,18 @@ var liveDown=new Set(),livePollT=null,liveHideT=null,livePaused=false,commentLim
 let me=null,screen='home',feed='all',posts=[],handles={},openPost=null,
     conv=null,chan=null,bookmarks=new Set(),expanded=new Set(),pending=0,
     convMeta={},msgCache={},convMembers={},pendingFile=null;
-const FEEDS=[['all','All'],['moments','Moments'],['help','Help'],['hiring','Hiring'],['saved','Saved']];
+const FEEDS=[['all','All'],['moments','Moments'],['help','Help'],['hiring','Hiring'],['sale','For Sale'],['saved','Saved']];
 const NAV=[['home','Home'],['friends','Friends'],['msgs','Messages'],['notifs','Alerts'],['me','Profile']];
-const FEEDNAME={moments:'Moments',help:'Help',hiring:'Hiring'};
+const FEEDNAME={moments:'Moments',help:'Help',hiring:'Hiring',sale:'For Sale'};
+const peso=n=>'₱'+Number(n).toLocaleString('en-PH',{maximumFractionDigits:2});
+function saleHtml(p){
+  if(p.feed!=='sale')return '';
+  const tag=p.is_sold?'<span class="pill sold">Sold</span>':(p.price!=null?`<span class="price">${peso(p.price)}</span>`:'<span class="price">Ask for price</span>');
+  const btn=(!p.is_sold&&p.author_id!==me.id)?`<button class="act chatsell" onclick="chatWith('${esc(handles[p.author_id]||'')}')">${ICON.msgs} Chat with seller</button>`:'';
+  return `<div class="salebar">${tag}${btn}</div>`;
+}
+function priceField(v){return `<div id="pricebox" style="display:${draftFeed==='sale'?'block':'none'}"><input id="pprice" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Price in ₱ (leave blank for ask for price)" value="${v??''}"></div>`}
+function readPrice(){const v=$('pprice')?.value.trim();if(!v)return {ok:true,val:null};const n=Number(v);return (isFinite(n)&&n>=0)?{ok:true,val:n}:{ok:false}}
 
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('on'),2600)}
 function swap(w){['login','signup','forgot','newpw'].forEach(k=>$('f-'+k).classList.toggle('hide',w!==k));
@@ -543,6 +557,7 @@ async function loadFeed(){
       <span class="pill feed">${esc(FEEDNAME[p.feed]||p.feed)}</span></div>
       ${p.body?`<p class="ptext ${long&&!op?'clamp':''}">${fmt(p.body)}</p>`:''}
       ${photoHtml(p)}
+      ${saleHtml(p)}
       ${long?`<div class="more" onclick="expand(${p.id})">${op?'Show less':'Show more'}</div>`:''}
       <div class="acts">
         <button class="act ${mine[p.id]?'on':''}" onclick="react(${p.id},this)">♥ ${rc[p.id]||0}</button>
@@ -596,14 +611,14 @@ function openCompose(){
   $('shtitle').textContent='Share something';
   $('shbody').innerHTML=`<div class="catrow">${Object.keys(FEEDNAME).map(k=>
     `<button class="chip ${k===draftFeed?'on':''}" id="cat-${k}" onclick="pickCat('${k}')">${FEEDNAME[k]}</button>`).join('')}</div>
-    <textarea id="pb" rows="5" placeholder="What's going on? Use @handle to mention, #topic to tag"></textarea>
+    <textarea id="pb" rows="5" placeholder="What's going on? Use @handle to mention, #topic to tag"></textarea>${priceField()}
     <div id="pprev"></div>
     <div class="photo-pick"><button class="attach" onclick="pickPostPhoto()" aria-label="Add photo">${ICON.clip}</button><span style="color:var(--muted);font-size:14px;font-weight:700">Add a photo</span></div>
     <button class="primary" id="postbtn" onclick="submitPost()">Post</button><div class="err" id="perr"></div>`;
   draftPhoto=null;
   $('sheet').classList.add('on');attachMentions($('pb'));setTimeout(()=>$('pb').focus(),80);
 }
-function pickCat(k){draftFeed=k;Object.keys(FEEDNAME).forEach(x=>$('cat-'+x).classList.toggle('on',x===k))}
+function pickCat(k){draftFeed=k;Object.keys(FEEDNAME).forEach(x=>$('cat-'+x).classList.toggle('on',x===k));const pb=$('pricebox');if(pb)pb.style.display=k==='sale'?'block':'none'}
 function closeSheet(){$('sheet').classList.remove('on')}
 let draftPhoto=null;
 function pickPostPhoto(){
@@ -617,8 +632,10 @@ function pickPostPhoto(){
 async function submitPost(){
   const b=$('pb').value.trim(),f=draftPhoto;
   if(!b&&!f)return $('perr').textContent='Write something or add a photo.';
+  const pr=readPrice();if(!pr.ok)return $('perr').textContent='Enter a valid price.';
   const btn=$('postbtn');btn.disabled=true;
   const row={author_id:me.id,feed:draftFeed,body:b};
+  if(draftFeed==='sale')row.price=pr.val;
   if(f){
     btn.textContent='Uploading…';
     const small=await shrinkImage(f,1600,0.82);
@@ -636,8 +653,17 @@ async function submitPost(){
 function postMenu(id){
   $('shtitle').textContent='Your post';
   $('shbody').innerHTML=`<button class="rowcard" style="width:100%;text-align:left" onclick="openEdit(${id})">${ICON.edit}<b style="flex:1">Edit post</b><span>›</span></button>
+    ${posts.find(x=>x.id===id)?.feed==='sale'?`<button class="rowcard" style="width:100%;text-align:left" onclick="toggleSold(${id})">${ICON.flag}<b style="flex:1">${posts.find(x=>x.id===id).is_sold?'Mark as available':'Mark as sold'}</b><span>›</span></button>`:''}
     <button class="rowcard" style="width:100%;text-align:left" onclick="askDelete(${id})">${ICON.trash}<b style="flex:1">Delete post</b><span>›</span></button>`;
   $('sheet').classList.add('on');
+}
+async function toggleSold(id){
+  const p=posts.find(x=>x.id===id);if(!p)return;
+  const v=!p.is_sold;
+  const {error}=await sb.from('aces_posts').update({is_sold:v}).eq('id',id).eq('author_id',me.id);
+  if(error)return toast(error.message);
+  p.is_sold=v;closeSheet();feedCache={};if(typeof feedAt!=='undefined')feedAt={};toast(v?'Marked as sold':'Marked as available');
+  if(screen==='post')scrPost();else{const f=$('feedlist');if(f)f._h=null;loadFeed()}
 }
 function openEdit(id){
   const p=posts.find(x=>x.id===id);if(!p)return;
@@ -645,7 +671,7 @@ function openEdit(id){
   $('shtitle').textContent='Edit post';
   $('shbody').innerHTML=`<div class="catrow">${Object.keys(FEEDNAME).map(k=>
     `<button class="chip ${k===draftFeed?'on':''}" id="cat-${k}" onclick="pickCat('${k}')">${FEEDNAME[k]}</button>`).join('')}</div>
-    <textarea id="eb" rows="6" placeholder="What's going on?">${esc(p.body||'')}</textarea>
+    <textarea id="eb" rows="6" placeholder="What's going on?">${esc(p.body||'')}</textarea>${priceField(p.price)}
     <button class="primary" id="editbtn" onclick="saveEdit(${id})">Save changes</button><div class="err" id="eerr"></div>`;
   $('sheet').classList.add('on');attachMentions($('eb'));setTimeout(()=>{const t=$('eb');t.focus();t.setSelectionRange(t.value.length,t.value.length)},80);
 }
@@ -653,14 +679,16 @@ async function saveEdit(id){
   const p=posts.find(x=>x.id===id);if(!p)return;
   const b=$('eb').value.trim();
   if(!b&&!p.image_url)return $('eerr').textContent='Write something, or delete the post instead.';
-  if(b===(p.body||'')&&draftFeed===p.feed)return closeSheet();
+  const pr=readPrice();if(!pr.ok)return $('eerr').textContent='Enter a valid price.';
+  const price=draftFeed==='sale'?pr.val:null;
+  if(b===(p.body||'')&&draftFeed===p.feed&&price===(p.price==null?null:Number(p.price)))return closeSheet();
   const btn=$('editbtn');btn.disabled=true;
   const now=new Date().toISOString();
-  let {error}=await sb.from('aces_posts').update({body:b,feed:draftFeed,edited_at:now}).eq('id',id).eq('author_id',me.id);
-  if(error&&/edited_at/.test(error.message))({error}=await sb.from('aces_posts').update({body:b,feed:draftFeed}).eq('id',id).eq('author_id',me.id));
+  let {error}=await sb.from('aces_posts').update({body:b,feed:draftFeed,price,edited_at:now}).eq('id',id).eq('author_id',me.id);
+  if(error&&/edited_at/.test(error.message))({error}=await sb.from('aces_posts').update({body:b,feed:draftFeed,price}).eq('id',id).eq('author_id',me.id));
   btn.disabled=false;
   if(error)return $('eerr').textContent=error.message;
-  p.body=b;p.feed=draftFeed;p.edited_at=now;
+  p.body=b;p.feed=draftFeed;p.price=price;p.edited_at=now;
   closeSheet();feedCache={};if(typeof feedAt!=='undefined')feedAt={};toast('Post updated');
   if(screen==='post')scrPost();else{const f=$('feedlist');if(f)f._h=null;loadFeed()}
 }
@@ -712,6 +740,7 @@ async function scrPost(){
     <span class="pill feed">${esc(FEEDNAME[p.feed]||p.feed)}</span></div>
     ${p.body?`<p class="ptext">${fmt(p.body)}</p>`:''}
     ${photoHtml(p)}
+    ${saleHtml(p)}
     ${p.author_id===me.id?`<div class="acts"><button class="act" onclick="openEdit(${p.id})">${ICON.edit} Edit post</button><button class="act flag" onclick="askDelete(${p.id})">${ICON.trash} Delete post</button></div>`:''}</article>
     <div class="sec">${cN} comment${cN===1?'':'s'}</div>
     ${cN>cs.length?`<button class="older" onclick="commentLimit+=100;scrPost()">Show earlier comments</button>`:''}
