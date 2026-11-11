@@ -50,6 +50,7 @@ textarea{resize:none;line-height:1.45}
 .primary{width:100%;height:56px;border-radius:28px;background:var(--brand);color:#fff;font-size:17px;font-weight:700;margin-top:20px}
 .primary:disabled{opacity:.6;cursor:default}
 .primary:disabled{opacity:.6}
+button.tiny:disabled{opacity:.55;cursor:default}
 .secondary{width:100%;height:56px;border-radius:28px;border:2px solid var(--brand);color:var(--brand);font-size:17px;font-weight:700;margin-top:12px;background:none}
 .tiny{height:44px;border-radius:22px;padding:0 18px;font-size:14px;font-weight:700;background:var(--brand);color:#fff;flex:none}
 .tiny.ghost{background:var(--paper);color:var(--body);border:2px solid var(--line)}
@@ -797,8 +798,13 @@ async function setRx(kind,id,emoji){
 async function scrFriends(){
   hdr('Friends');
   $('view').innerHTML=viewCache.friends||'<div class="empty">Loading…</div>';if(viewCache.friends)wireFriends();
-  const {data,error}=await sb.rpc('aces_my_friends');
+  const [{data,error},{data:pk}]=await Promise.all([sb.rpc('aces_my_friends'),sb.from('aces_pokes').select('poker_id,poked_id')]);
   if(screen!=='friends')return;
+  const sentPk=new Set((pk||[]).filter(r=>r.poker_id===me.id).map(r=>r.poked_id)),
+        gotPk=new Set((pk||[]).filter(r=>r.poked_id===me.id).map(r=>r.poker_id));
+  const pokeBtn=f=>gotPk.has(f.other_id)?`<button class="tiny ok" onclick="poke(${f.other_id})">Poke back</button>`
+    :sentPk.has(f.other_id)?`<button class="tiny ghost" disabled title="Wait for them to poke back">Poked</button>`
+    :`<button class="tiny ghost" onclick="poke(${f.other_id})">Poke</button>`;
   if(error)return $('view').innerHTML=`<div class="empty">${esc(error.message)}</div>`;
   const inc=data.filter(f=>f.direction==='incoming'),
         out=data.filter(f=>f.direction==='outgoing'),
@@ -816,6 +822,7 @@ async function scrFriends(){
        <button class="tiny ghost" onclick="decline(${f.id},'Request declined')">Decline</button></div>`).join(''):''}
     <div class="sec">Friends</div>
     ${fr.map(f=>`<div class="rowcard">${blob(f.other_handle,36)}<b style="flex:1">${esc(f.other_handle)}</b>
+       ${pokeBtn(f)}
        <button class="tiny ghost" onclick="chatWith('${esc(f.other_handle)}')">Message</button></div>`).join('')
       ||'<div class="empty">No friends yet.<br>Ask an ACES member for their handle.</div>'}
     ${out.length?'<div class="sec">Sent</div>'+out.map(f=>
@@ -832,6 +839,11 @@ async function addFriend(){
   if(error)return $('ferr').textContent=error.message;
   toast({requested:'Request sent.',accepted:'You are now friends.',already_friends:'Already friends.',already_requested:'Already requested.'}[data]||'Done');
   scrFriends();
+}
+async function poke(id){
+  const {error}=await sb.rpc('aces_poke',{target:id});
+  if(error)return toast(error.message);
+  toast('Poked!');scrFriends();
 }
 async function accept(id){
   const {error}=await sb.rpc('aces_friend_accept',{p_id:id});
@@ -862,7 +874,7 @@ function notifText(n,h){
   const who=`<b>${esc(h)}</b>`;
   return {message:n.count>1?`${who} sent you ${n.count} messages`:`${who} sent you a message`,
     friend_request:`${who} sent you a friend request`,friend_accept:`${who} accepted your friend request`,
-    comment:`${who} commented on your post`,like:`${who} liked your post`,mention:`${who} mentioned you`}[n.kind]||`${who} did something`;
+    comment:`${who} commented on your post`,like:`${who} liked your post`,mention:`${who} mentioned you`,poke:`${who} poked you`}[n.kind]||`${who} did something`;
 }
 async function scrNotifs(quiet){
   hdr('Alerts',{right:'<button class="tiny ghost" onclick="clearNotifs()">Clear all</button>'});
@@ -877,7 +889,7 @@ async function scrNotifs(quiet){
   const vh=notifRows.map(n=>{const h=handles[n.actor_id]||'member';
     return `<button class="rowcard ntf${n.read_at?'':' new'}" onclick="openNotif(${n.id})">${blob(h,40)}
       <span class="tx">${notifText(n,h)}<span class="tm">${ago(n.created_at)}</span></span></button>`}).join('')
-    ||'<div class="empty">No alerts yet.<br>Messages, friend requests, comments and likes show up here.</div>';
+    ||'<div class="empty">No alerts yet.<br>Messages, friend requests, pokes, comments and likes show up here.</div>';
   viewCache.notifs=vh;$('view').innerHTML=vh;
   const unread=notifRows.filter(n=>!n.read_at).map(n=>n.id);
   if(unread.length){notifUnread=0;paintNav();
@@ -891,7 +903,7 @@ async function openNotif(id){
       (data||[]).forEach(c=>convMeta[c.conversation_id]={isGroup:c.is_group,title:c.is_group?(c.title||'Group'):(c.other_handle||'Chat'),others:c.other_handle||''})}
     return openChat(n.conversation_id);
   }
-  if(n.kind==='friend_request'||n.kind==='friend_accept')return go('friends');
+  if(n.kind==='friend_request'||n.kind==='friend_accept'||n.kind==='poke')return go('friends');
   if(n.post_id){
     if(!posts.find(p=>p.id===n.post_id)){
       const {data:p}=await sb.from('aces_posts').select(POSTCOLS).eq('id',n.post_id).maybeSingle();
